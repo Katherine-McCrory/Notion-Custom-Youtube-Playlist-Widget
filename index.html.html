@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notion YouTube Music Widget</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: transparent;
+            user-select: none;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        :root {
+            --bg-color: #0f172a;
+            --accent-color: #6366f1;
+            --text-primary: #ffffff;
+            --text-secondary: #94a3b8;
+            --card-bg: rgba(15, 23, 42, 0.75);
+            --overlay-opacity: 0.4;
+            --overlay-blur: 8px;
+        }
+
+        /* Dynamically updated background container */
+        .widget-body-bg {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .widget-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(var(--overlay-blur));
+            -webkit-backdrop-filter: blur(var(--overlay-blur));
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .accent-bg { background-color: var(--accent-color); }
+        .accent-text { color: var(--accent-color); }
+        .accent-border { border-color: var(--accent-color); }
+
+        /* Scrubber Track Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]:focus {
+            outline: none;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+            -webkit-appearance: none;
+            margin-top: -4px;
+            transition: transform 0.1s ease;
+            box-shadow: 0 0 8px var(--accent-color);
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.3);
+        }
+
+        /* Scrolling marquee for long track titles */
+        .marquee-container {
+            overflow: hidden;
+            white-space: nowrap;
+            position: relative;
+        }
+
+        .marquee-content {
+            display: inline-block;
+            white-space: nowrap;
+            will-change: transform;
+        }
+
+        .scroll-text {
+            animation: marquee 12s linear infinite;
+        }
+
+        @keyframes marquee {
+            0% { transform: translateX(0%); }
+            100% { transform: translateX(-50%); }
+        }
+
+        .bg-image-layer {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: 0;
+            transition: background-image 0.3s ease;
+        }
+
+        .bg-overlay-layer {
+            position: absolute;
+            inset: 0;
+            background-color: var(--bg-color);
+            opacity: var(--overlay-opacity);
+            z-index: 1;
+            transition: opacity 0.3s ease, background-color 0.3s ease;
+        }
+
+        /* Custom scrollbars for drawer */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="p-2">
+
+    <!-- Outer Player Shell with Customizable Dynamic Background -->
+    <div id="player-container" class="relative w-full max-w-xl rounded-2xl overflow-hidden shadow-2xl widget-body-bg transition-all duration-300">
+        
+        <!-- Custom Background Image and Tint Overlay Layers -->
+        <div id="bg-image" class="bg-image-layer"></div>
+        <div id="bg-overlay" class="bg-overlay-layer"></div>
+
+        <!-- Hidden YouTube API Embed Frame -->
+        <div class="hidden">
+            <div id="youtube-player"></div>
+        </div>
+
+        <!-- Content Card Overlay -->
+        <div class="relative z-10 p-3.5 widget-card flex flex-col gap-2.5">
+            
+            <!-- Top Row: Track Details & Primary Action Buttons -->
+            <div class="flex items-center justify-between gap-3">
+                
+                <!-- Track Details -->
+                <div class="flex items-center gap-3 overflow-hidden flex-1 min-w-0">
+                    <!-- Album Thumbnail / Dynamic Sound Indicator -->
+                    <div class="relative w-10 h-10 rounded-lg overflow-hidden bg-black/30 flex-shrink-0 border border-white/10 shadow-inner flex items-center justify-center">
+                        <img id="track-thumb" src="" alt="" class="w-full h-full object-cover hidden">
+                        <i id="track-icon" class="fa-solid fa-music text-white/50 text-xs"></i>
+                    </div>
+
+                    <!-- Title and Status Display -->
+                    <div class="flex flex-col min-w-0 flex-1">
+                        <div class="marquee-container w-full">
+                            <div id="marquee-wrapper" class="marquee-content">
+                                <span id="track-title" class="text-xs font-semibold tracking-tight text-white drop-shadow-sm">
+                                    Initializing Player...
+                                </span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <span id="status-badge" class="text-[10px] font-medium px-1.5 py-0.2 rounded bg-black/20 text-white/70 border border-white/10">
+                                Ready
+                            </span>
+                            <span id="time-display" class="text-[11px] text-white/60 font-mono">
+                                0:00 / 0:00
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Control Buttons: Playlists & Background Settings Drawer Toggle -->
+                <div class="flex items-center gap-1">
+                    <button id="settings-toggle" class="p-2 rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-colors" title="Customize Background & Playlist">
+                        <i class="fa-solid fa-sliders text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Progress Scrubber -->
+            <div class="flex items-center gap-2 w-full pt-0.5">
+                <input type="range" id="progress-bar" min="0" max="100" value="0" step="0.1" class="w-full">
+            </div>
+
+            <!-- Bottom Row: Playback & Audio Controls -->
+            <div class="flex items-center justify-between pt-0.5">
+                <!-- Volume Controls -->
+                <div class="flex items-center gap-1.5">
+                    <button id="mute-btn" class="p-1 text-white/60 hover:text-white transition-colors">
+                        <i id="volume-icon" class="fa-solid fa-volume-high text-xs"></i>
+                    </button>
+                    <input type="range" id="volume-slider" min="0" max="100" value="100" class="w-14 sm:w-18 accent-bg">
+                </div>
+
+                <!-- Main Audio Action Buttons -->
+                <div class="flex items-center gap-2.5">
+                    <!-- Previous Track -->
+                    <button id="prev-btn" class="p-1.5 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-all active:scale-95" title="Previous Track">
+                        <i class="fa-solid fa-backward-step text-xs"></i>
+                    </button>
+
+                    <!-- Main Play / Pause Button -->
+                    <button id="play-btn" class="w-9 h-9 rounded-full accent-bg text-white flex items-center justify-center shadow-lg hover:opacity-90 transition-all active:scale-95" title="Play/Pause">
+                        <i id="play-icon" class="fa-solid fa-play text-xs ml-0.5"></i>
+                    </button>
+
+                    <!-- Next Track -->
+                    <button id="next-btn" class="p-1.5 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-all active:scale-95" title="Next Track">
+                        <i class="fa-solid fa-forward-step text-xs"></i>
+                    </button>
+                </div>
+
+                <!-- Playlist Shuffle Button -->
+                <div class="flex items-center gap-1.5">
+                    <button id="shuffle-btn" class="p-1 text-white/50 hover:text-white transition-colors" title="Shuffle Playlist">
+                        <i class="fa-solid fa-shuffle text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Settings Drawer (Customization Options & Playlist Input) -->
+            <div id="settings-drawer" class="hidden mt-2 pt-3 border-t border-white/10 flex flex-col gap-3 text-xs max-h-56 overflow-y-auto pr-1">
+                
+                <!-- Section 1: Background Color & Accent Picker -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[10px] font-semibold text-white/60 uppercase tracking-wider mb-1">Body Background</label>
+                        <div class="flex items-center gap-2 bg-black/20 p-1.5 rounded-lg border border-white/10">
+                            <input type="color" id="bg-color-picker" value="#0f172a" class="w-6 h-6 rounded cursor-pointer border-0 bg-transparent">
+                            <span id="bg-color-val" class="font-mono text-[11px] text-white/80">#0f172a</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-white/60 uppercase tracking-wider mb-1">Accent Color</label>
+                        <div class="flex items-center gap-2 bg-black/20 p-1.5 rounded-lg border border-white/10">
+                            <input type="color" id="accent-color-picker" value="#6366f1" class="w-6 h-6 rounded cursor-pointer border-0 bg-transparent">
+                            <span id="accent-color-val" class="font-mono text-[11px] text-white/80">#6366f1</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Custom Background Image Upload & URL -->
+                <div class="flex flex-col gap-1.5">
+                    <label class="block text-[10px] font-semibold text-white/60 uppercase tracking-wider">Custom Background Image</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="bg-url-input" placeholder="Paste Image / GIF URL..." class="flex-1 bg-black/20 border border-white/10 rounded-lg px-2.5 py-1 text-white text-xs focus:outline-none focus:border-white/30">
+                        <label class="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-white rounded-lg cursor-pointer transition-colors flex items-center gap-1 text-[11px]">
+                            <i class="fa-solid fa-upload text-[10px]"></i>
+                            <span>Upload</span>
+                            <input type="file" id="bg-file-input" accept="image/*" class="hidden">
+                        </label>
+                        <button id="remove-bg-btn" class="px-2 py-1 bg-red-500/20 hover:bg-red-500/40 text-red-300 rounded-lg transition-colors text-[11px]" title="Remove Image">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Section 3: Overlay & Image Adjustments -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[10px] font-semibold text-white/60 uppercase tracking-wider mb-1">Dim Tint</label>
+                        <input type="range" id="overlay-opacity" min="0" max="0.9" step="0.05" value="0.4" class="w-full">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-white/60 uppercase tracking-wider mb-1">Blur Effect</label>
+                        <input type="range" id="overlay-blur" min="0" max="20" step="1" value="8" class="w-full">
+                    </div>
+                </div>
+
+                <!-- Section 4: Playlist ID Switcher -->
+                <div class="flex flex-col gap-1 pt-1 border-t border-white/10">
+                    <label class="block text-[10px] font-semibold text-white/60 uppercase tracking-wider">YouTube Playlist URL or ID</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="playlist-input" placeholder="e.g. PLJYIXcNxi-qw" class="flex-1 bg-black/20 border border-white/10 rounded-lg px-2.5 py-1 text-white text-xs focus:outline-none focus:border-white/30">
+                        <button id="save-playlist-btn" class="px-3 py-1 accent-bg text-white font-semibold rounded-lg hover:opacity-90 transition-opacity text-xs">
+                            Load
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State Configuration & Default Values
+        let currentPlaylistId = 'PLJYIXcNxi-qw';
+        let player = null;
+        let isPlaying = false;
+        let isMuted = false;
+        let updateInterval = null;
+        let isDraggingScrubber = false;
+        let isApiReady = false;
+
+        // Custom Preferences Object with LocalStorage Support
+        const defaultPrefs = {
+            bgColor: '#0f172a',
+            accentColor: '#6366f1',
+            bgImage: '',
+            overlayOpacity: 0.4,
+            overlayBlur: 8,
+            playlistId: 'PLJYIXcNxi-qw'
+        };
+
+        let prefs = { ...defaultPrefs };
+
+        // DOM Elements
+        const playBtn = document.getElementById('play-btn');
+        const playIcon = document.getElementById('play-icon');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const trackTitle = document.getElementById('track-title');
+        const trackThumb = document.getElementById('track-thumb');
+        const trackIcon = document.getElementById('track-icon');
+        const statusBadge = document.getElementById('status-badge');
+        const progressBar = document.getElementById('progress-bar');
+        const timeDisplay = document.getElementById('time-display');
+        const muteBtn = document.getElementById('mute-btn');
+        const volumeIcon = document.getElementById('volume-icon');
+        const volumeSlider = document.getElementById('volume-slider');
+        const shuffleBtn = document.getElementById('shuffle-btn');
+
+        // Settings Controls
+        const settingsToggle = document.getElementById('settings-toggle');
+        const settingsDrawer = document.getElementById('settings-drawer');
+        const bgColorPicker = document.getElementById('bg-color-picker');
+        const bgColorVal = document.getElementById('bg-color-val');
+        const accentColorPicker = document.getElementById('accent-color-picker');
+        const accentColorVal = document.getElementById('accent-color-val');
+        const bgUrlInput = document.getElementById('bg-url-input');
+        const bgFileInput = document.getElementById('bg-file-input');
+        const removeBgBtn = document.getElementById('remove-bg-btn');
+        const overlayOpacitySlider = document.getElementById('overlay-opacity');
+        const overlayBlurSlider = document.getElementById('overlay-blur');
+        const playlistInput = document.getElementById('playlist-input');
+        const savePlaylistBtn = document.getElementById('save-playlist-btn');
+        const bgImageLayer = document.getElementById('bg-image');
+
+        // Load Persisted Preferences
+        function loadPreferences() {
+            try {
+                const saved = localStorage.getItem('notion_yt_player_prefs');
+                if (saved) {
+                    prefs = { ...defaultPrefs, ...JSON.parse(saved) };
+                }
+            } catch (e) {
+                console.warn('LocalStorage unavailable:', e);
+            }
+
+            currentPlaylistId = prefs.playlistId || 'PLJYIXcNxi-qw';
+            applyPreferences();
+        }
+
+        function savePreferences() {
+            try {
+                localStorage.setItem('notion_yt_player_prefs', JSON.stringify(prefs));
+            } catch (e) {
+                console.warn('LocalStorage save failed:', e);
+            }
+        }
+
+        // Apply Preferences to DOM Styles
+        function applyPreferences() {
+            document.documentElement.style.setProperty('--bg-color', prefs.bgColor);
+            document.documentElement.style.setProperty('--accent-color', prefs.accentColor);
+            document.documentElement.style.setProperty('--overlay-opacity', prefs.overlayOpacity);
+            document.documentElement.style.setProperty('--overlay-blur', prefs.overlayBlur + 'px');
+
+            bgColorPicker.value = prefs.bgColor;
+            bgColorVal.innerText = prefs.bgColor;
+            accentColorPicker.value = prefs.accentColor;
+            accentColorVal.innerText = prefs.accentColor;
+            overlayOpacitySlider.value = prefs.overlayOpacity;
+            overlayBlurSlider.value = prefs.overlayBlur;
+
+            if (prefs.bgImage) {
+                bgImageLayer.style.backgroundImage = `url('${prefs.bgImage}')`;
+                bgUrlInput.value = prefs.bgImage.startsWith('data:') ? '' : prefs.bgImage;
+            } else {
+                bgImageLayer.style.backgroundImage = 'none';
+                bgUrlInput.value = '';
+            }
+
+            playlistInput.value = currentPlaylistId;
+        }
+
+        // Initialize YouTube IFrame API Safely
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        function onYouTubeIframeAPIReady() {
+            isApiReady = true;
+            initializePlayer();
+        }
+
+        function initializePlayer() {
+            if (!isApiReady) return;
+
+            // Safe origin handling for Notion iframe & local environments
+            let safeOrigin = 'https://www.youtube.com';
+            try {
+                if (window.location.origin && window.location.origin !== 'null') {
+                    safeOrigin = window.location.origin;
+                }
+            } catch (e) {}
+
+            if (player) {
+                try { player.destroy(); } catch (e) {}
+            }
+
+            statusBadge.innerText = "Loading...";
+            trackTitle.innerText = "Loading YouTube Playlist...";
+
+            player = new YT.Player('youtube-player', {
+                height: '0',
+                width: '0',
+                host: 'https://www.youtube-nocookie.com',
+                playerVars: {
+                    'listType': 'playlist',
+                    'list': currentPlaylistId,
+                    'autoplay': 0,
+                    'controls': 0,
+                    'disablekb': 1,
+                    'fs': 0,
+                    'modestbranding': 1,
+                    'rel': 0,
+                    'origin': safeOrigin
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': onPlayerError
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            statusBadge.innerText = "Ready";
+            updateTrackInfo();
+            startProgressLoop();
+        }
+
+        function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.PLAYING) {
+                isPlaying = true;
+                playIcon.className = "fa-solid fa-pause text-xs";
+                statusBadge.innerText = "Playing";
+                updateTrackInfo();
+            } else if (event.data === YT.PlayerState.PAUSED) {
+                isPlaying = false;
+                playIcon.className = "fa-solid fa-play text-xs ml-0.5";
+                statusBadge.innerText = "Paused";
+            } else if (event.data === YT.PlayerState.BUFFERING) {
+                statusBadge.innerText = "Buffering";
+            } else if (event.data === YT.PlayerState.ENDED) {
+                isPlaying = false;
+                playIcon.className = "fa-solid fa-play text-xs ml-0.5";
+                statusBadge.innerText = "Ended";
+            }
+        }
+
+        function onPlayerError(e) {
+            console.warn('YouTube Player Error code:', e.data);
+            statusBadge.innerText = "Error";
+            trackTitle.innerText = "Track or playlist unavailable";
+        }
+
+        function updateTrackInfo() {
+            if (!player || typeof player.getVideoData !== 'function') return;
+
+            const videoData = player.getVideoData();
+            if (videoData && videoData.title) {
+                trackTitle.innerText = videoData.title;
+                
+                if (videoData.video_id) {
+                    trackThumb.src = `https://img.youtube.com/vi/${videoData.video_id}/mqdefault.jpg`;
+                    trackThumb.classList.remove('hidden');
+                    trackIcon.classList.add('hidden');
+                }
+
+                // Check text width to trigger auto marquee scroll
+                const containerWidth = document.querySelector('.marquee-container').clientWidth;
+                if (trackTitle.scrollWidth > containerWidth) {
+                    trackTitle.parentElement.classList.add('scroll-text');
+                } else {
+                    trackTitle.parentElement.classList.remove('scroll-text');
+                }
+            }
+        }
+
+        function formatTime(seconds) {
+            if (isNaN(seconds) || seconds < 0) return "0:00";
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        function startProgressLoop() {
+            if (updateInterval) clearInterval(updateInterval);
+            updateInterval = setInterval(() => {
+                if (player && typeof player.getCurrentTime === 'function' && !isDraggingScrubber) {
+                    const currentTime = player.getCurrentTime() || 0;
+                    const duration = player.getDuration() || 0;
+
+                    if (duration > 0) {
+                        const progress = (currentTime / duration) * 100;
+                        progressBar.value = progress;
+                        timeDisplay.innerText = `${formatTime(currentTime)} / ${formatTime(duration)}`;
+                    } else {
+                        timeDisplay.innerText = "0:00 / 0:00";
+                    }
+                }
+            }, 500);
+        }
+
+        // Control Event Listeners
+        playBtn.addEventListener('click', () => {
+            if (!player) return;
+            if (isPlaying) {
+                player.pauseVideo();
+            } else {
+                player.playVideo();
+            }
+        });
+
+        nextBtn.addEventListener('click', () => {
+            if (player && typeof player.nextVideo === 'function') {
+                player.nextVideo();
+            }
+        });
+
+        prevBtn.addEventListener('click', () => {
+            if (player && typeof player.previousVideo === 'function') {
+                player.previousVideo();
+            }
+        });
+
+        progressBar.addEventListener('mousedown', () => { isDraggingScrubber = true; });
+        progressBar.addEventListener('mouseup', () => { isDraggingScrubber = false; });
+        progressBar.addEventListener('change', () => {
+            if (player && typeof player.getDuration === 'function') {
+                const duration = player.getDuration();
+                const seekToTime = (progressBar.value / 100) * duration;
+                player.seekTo(seekToTime, true);
+            }
+            isDraggingScrubber = false;
+        });
+
+        volumeSlider.addEventListener('input', (e) => {
+            const vol = e.target.value;
+            if (player && typeof player.setVolume === 'function') {
+                player.setVolume(vol);
+                volumeIcon.className = vol == 0 ? "fa-solid fa-volume-xmark text-xs" : "fa-solid fa-volume-high text-xs";
+            }
+        });
+
+        muteBtn.addEventListener('click', () => {
+            if (!player) return;
+            if (isMuted) {
+                player.unMute();
+                isMuted = false;
+                volumeIcon.className = "fa-solid fa-volume-high text-xs";
+            } else {
+                player.mute();
+                isMuted = true;
+                volumeIcon.className = "fa-solid fa-volume-xmark text-xs";
+            }
+        });
+
+        let isShuffled = false;
+        shuffleBtn.addEventListener('click', () => {
+            if (!player) return;
+            isShuffled = !isShuffled;
+            player.setShuffle(isShuffled);
+            shuffleBtn.classList.toggle('accent-text', isShuffled);
+        });
+
+        // Background & Customization Controls
+        bgColorPicker.addEventListener('input', (e) => {
+            prefs.bgColor = e.target.value;
+            bgColorVal.innerText = prefs.bgColor;
+            applyPreferences();
+            savePreferences();
+        });
+
+        accentColorPicker.addEventListener('input', (e) => {
+            prefs.accentColor = e.target.value;
+            accentColorVal.innerText = prefs.accentColor;
+            applyPreferences();
+            savePreferences();
+        });
+
+        bgUrlInput.addEventListener('change', (e) => {
+            prefs.bgImage = e.target.value.trim();
+            applyPreferences();
+            savePreferences();
+        });
+
+        bgFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (evt) {
+                    prefs.bgImage = evt.target.result;
+                    applyPreferences();
+                    savePreferences();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        removeBgBtn.addEventListener('click', () => {
+            prefs.bgImage = '';
+            applyPreferences();
+            savePreferences();
+        });
+
+        overlayOpacitySlider.addEventListener('input', (e) => {
+            prefs.overlayOpacity = e.target.value;
+            applyPreferences();
+            savePreferences();
+        });
+
+        overlayBlurSlider.addEventListener('input', (e) => {
+            prefs.overlayBlur = e.target.value;
+            applyPreferences();
+            savePreferences();
+        });
+
+        settingsToggle.addEventListener('click', () => {
+            settingsDrawer.classList.toggle('hidden');
+        });
+
+        function extractPlaylistId(input) {
+            if (!input) return null;
+            if (input.includes('list=')) {
+                try {
+                    const urlParams = new URLSearchParams(input.split('?')[1]);
+                    return urlParams.get('list');
+                } catch (e) {}
+            }
+            return input.trim();
+        }
+
+        savePlaylistBtn.addEventListener('click', () => {
+            const val = playlistInput.value;
+            const extractedId = extractPlaylistId(val);
+            if (extractedId) {
+                currentPlaylistId = extractedId;
+                prefs.playlistId = extractedId;
+                savePreferences();
+                initializePlayer();
+            }
+        });
+
+        // Initialize App on Page Load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadPreferences();
+        });
+    </script>
+</body>
+</html>
