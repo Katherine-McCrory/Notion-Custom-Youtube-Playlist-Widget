@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Notion YouTube Music Widget</title>
   
-  <!-- Force dark color scheme to prevent Notion white background -->
+  <!-- Force dark color scheme -->
   <meta name="color-scheme" content="dark">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
@@ -61,7 +61,7 @@
       transform: scale(1.2);
     }
 
-    /* Sleek Custom Scrollbar for Settings Overlay */
+    /* Custom Scrollbar for Settings */
     .custom-scroll::-webkit-scrollbar {
       width: 4px;
     }
@@ -108,7 +108,7 @@
     <!-- Main Content -->
     <div class="relative z-10 flex flex-col gap-2">
       
-      <!-- Top Section: Compact Track Header -->
+      <!-- Top Section: Track Header -->
       <div class="flex items-center gap-2.5">
         <!-- Thumbnail -->
         <div class="relative group w-11 h-11 flex-shrink-0 rounded-lg overflow-hidden bg-black/40 border border-white/10 shadow-inner">
@@ -127,13 +127,18 @@
           </div>
         </div>
 
-        <!-- Settings Button -->
-        <button id="settings-toggle" class="text-white/60 hover:text-white p-1 transition-colors" title="Settings">
-          <i class="fa-solid fa-sliders text-xs"></i>
-        </button>
+        <!-- Quick Restart & Settings Buttons -->
+        <div class="flex items-center gap-1">
+          <button id="restart-btn" class="text-white/60 hover:text-white p-1 transition-colors" title="Restart Playlist from Beginning">
+            <i class="fa-solid fa-rotate-left text-xs"></i>
+          </button>
+          <button id="settings-toggle" class="text-white/60 hover:text-white p-1 transition-colors" title="Settings">
+            <i class="fa-solid fa-sliders text-xs"></i>
+          </button>
+        </div>
       </div>
 
-      <!-- Compact Progress Scrubber -->
+      <!-- Scrubber -->
       <div class="w-full">
         <input type="range" id="progress-bar" min="0" max="100" value="0" class="w-full cursor-pointer">
       </div>
@@ -141,7 +146,7 @@
       <!-- Bottom Controls Row -->
       <div class="flex items-center justify-between pt-0.5">
         <!-- Volume Control -->
-        <div class="flex items-center gap-1.5 w-24">
+        <div class="flex items-center gap-1.5 w-20">
           <button id="mute-btn" class="text-white/70 hover:text-white transition-colors">
             <i id="volume-icon" class="fa-solid fa-volume-high text-[11px]"></i>
           </button>
@@ -161,14 +166,19 @@
           </button>
         </div>
 
-        <!-- Shuffle Button -->
-        <button id="shuffle-btn" class="text-white/40 hover:text-white transition-colors text-xs p-1" title="Shuffle Playlist">
-          <i class="fa-solid fa-shuffle"></i>
-        </button>
+        <!-- Shuffle & Repeat Controls -->
+        <div class="flex items-center gap-2">
+          <button id="shuffle-btn" class="text-white/40 hover:text-white transition-colors text-xs p-1" title="Shuffle Playlist">
+            <i class="fa-solid fa-shuffle"></i>
+          </button>
+          <button id="loop-btn" class="text-white/40 hover:text-white transition-colors text-xs p-1" title="Repeat/Loop Playlist">
+            <i class="fa-solid fa-repeat"></i>
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- Fixed Settings Panel Overlay (Full Height Flex Container with Scroll Padding) -->
+    <!-- Fixed Settings Panel Overlay -->
     <div id="settings-panel" class="absolute inset-0 z-20 bg-slate-900/95 backdrop-blur-md p-3 flex flex-col h-full transition-all duration-300 opacity-0 pointer-events-none translate-y-3">
       <!-- Fixed Header -->
       <div class="flex items-center justify-between border-b border-white/10 pb-1.5 mb-2 flex-shrink-0">
@@ -226,6 +236,7 @@
     let player = null;
     let isPlaying = false;
     let isShuffle = false;
+    let isLoop = false;
     let updateTimer = null;
     let currentPlaylistId = 'PL4fGSI1pTjv1-0m-9Z-9vXN-U9j_o9z-A';
 
@@ -380,12 +391,29 @@
       document.getElementById('next-btn').addEventListener('click', () => player && player.nextVideo());
       document.getElementById('prev-btn').addEventListener('click', () => player && player.previousVideo());
 
+      // Restart playlist button
+      document.getElementById('restart-btn').addEventListener('click', () => {
+        if (player && typeof player.playVideoAt === 'function') {
+          player.playVideoAt(0);
+        }
+      });
+
+      // Shuffle Toggle
       document.getElementById('shuffle-btn').addEventListener('click', () => {
         if (!player) return;
         isShuffle = !isShuffle;
         player.setShuffle(isShuffle);
         document.getElementById('shuffle-btn').classList.toggle('text-violet-400', isShuffle);
         document.getElementById('shuffle-btn').classList.toggle('text-white/40', !isShuffle);
+      });
+
+      // Loop / Repeat Toggle
+      document.getElementById('loop-btn').addEventListener('click', () => {
+        if (!player) return;
+        isLoop = !isLoop;
+        player.setLoop(isLoop);
+        document.getElementById('loop-btn').classList.toggle('text-violet-400', isLoop);
+        document.getElementById('loop-btn').classList.toggle('text-white/40', !isLoop);
       });
 
       document.getElementById('volume-slider').addEventListener('input', (e) => {
