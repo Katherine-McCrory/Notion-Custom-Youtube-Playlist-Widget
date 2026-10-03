@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="background: transparent !important;">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,48 +9,34 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         
-        body {
+        /* Force root html & body to be 100% transparent for Notion embeds */
+        html, body {
+            background: transparent !important;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0;
             padding: 0;
-            overflow: hidden;
-            background: transparent;
-            user-select: none;
             height: 100vh;
+            width: 100vw;
+            overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
+            user-select: none;
         }
 
         :root {
-            --bg-color: #0f172a;
+            --card-bg-color: #0f172a;
             --accent-color: #6366f1;
-            --text-primary: #ffffff;
-            --text-secondary: #94a3b8;
-            --card-bg: rgba(15, 23, 42, 0.75);
-            --overlay-opacity: 0.4;
-            --overlay-blur: 8px;
+            --text-color: #ffffff;
+            --subtext-color: rgba(255, 255, 255, 0.7);
+            --border-color: rgba(255, 255, 255, 0.15);
+            --control-hover: rgba(255, 255, 255, 0.1);
         }
 
-        /* Dynamically updated background container */
-        .widget-body-bg {
-            background-color: var(--bg-color);
-            color: var(--text-primary);
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
+        .accent-bg { background-color: var(--accent-color) !important; }
+        .accent-text { color: var(--accent-color) !important; }
 
-        .widget-card {
-            background: var(--card-bg);
-            backdrop-filter: blur(var(--overlay-blur));
-            -webkit-backdrop-filter: blur(var(--overlay-blur));
-            border: 1px solid rgba(255, 255, 255, 0.12);
-        }
-
-        .accent-bg { background-color: var(--accent-color); }
-        .accent-text { color: var(--accent-color); }
-        .accent-border { border-color: var(--accent-color); }
-
-        /* Scrubber Track Styling */
+        /* Custom Scrubber Track Styling */
         input[type=range] {
             -webkit-appearance: none;
             width: 100%;
@@ -66,7 +52,7 @@
             height: 4px;
             cursor: pointer;
             border-radius: 9999px;
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(150, 150, 150, 0.3);
         }
 
         input[type=range]::-webkit-slider-thumb {
@@ -78,14 +64,14 @@
             -webkit-appearance: none;
             margin-top: -4px;
             transition: transform 0.1s ease;
-            box-shadow: 0 0 8px var(--accent-color);
+            box-shadow: 0 0 6px rgba(0,0,0,0.2);
         }
 
         input[type=range]::-webkit-slider-thumb:hover {
-            transform: scale(1.3);
+            transform: scale(1.25);
         }
 
-        /* Scrolling marquee for long track titles */
+        /* Marquee horizontal auto scroll for track titles */
         .marquee-container {
             overflow: hidden;
             white-space: nowrap;
@@ -107,186 +93,163 @@
             100% { transform: translateX(-50%); }
         }
 
-        .bg-image-layer {
-            position: absolute;
-            inset: 0;
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            z-index: 0;
-            transition: background-image 0.3s ease;
-        }
-
-        .bg-overlay-layer {
-            position: absolute;
-            inset: 0;
-            background-color: var(--bg-color);
-            opacity: var(--overlay-opacity);
-            z-index: 1;
-            transition: opacity 0.3s ease, background-color 0.3s ease;
-        }
-
-        /* Custom scrollbars for drawer */
         ::-webkit-scrollbar {
             width: 4px;
         }
         ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(150, 150, 150, 0.3);
             border-radius: 4px;
         }
     </style>
 </head>
 <body class="p-2">
 
-    <!-- Outer Player Shell with Customizable Dynamic Background -->
-    <div id="player-container" class="relative w-full max-w-xl rounded-2xl overflow-hidden shadow-2xl widget-body-bg transition-all duration-300">
+    <!-- Primary Card Container -->
+    <div id="player-card" 
+         class="relative w-full max-w-xl rounded-2xl overflow-hidden shadow-2xl p-3.5 border transition-all duration-300 flex flex-col gap-2.5"
+         style="background-color: var(--card-bg-color); color: var(--text-color); border-color: var(--border-color); background-size: cover; background-position: center;">
         
-        <!-- Custom Background Image and Tint Overlay Layers -->
-        <div id="bg-image" class="bg-image-layer"></div>
-        <div id="bg-overlay" class="bg-overlay-layer"></div>
+        <!-- Optional Background Image Layer with Adjustable Tint -->
+        <div id="bg-image-layer" class="absolute inset-0 z-0 bg-cover bg-center pointer-events-none hidden"></div>
+        <div id="bg-overlay-layer" class="absolute inset-0 z-0 pointer-events-none hidden"></div>
 
-        <!-- Hidden YouTube API Embed Frame -->
+        <!-- Hidden YouTube API Target -->
         <div class="hidden">
             <div id="youtube-player"></div>
         </div>
 
-        <!-- Content Card Overlay -->
-        <div class="relative z-10 p-3.5 widget-card flex flex-col gap-2.5">
+        <!-- Card Interactive Foreground Content -->
+        <div class="relative z-10 flex flex-col gap-2.5">
             
-            <!-- Top Row: Track Details & Primary Action Buttons -->
+            <!-- Top Row: Track Thumbnail, Title, and Drawer Settings Toggle -->
             <div class="flex items-center justify-between gap-3">
                 
                 <!-- Track Details -->
                 <div class="flex items-center gap-3 overflow-hidden flex-1 min-w-0">
-                    <!-- Album Thumbnail / Dynamic Sound Indicator -->
-                    <div class="relative w-10 h-10 rounded-lg overflow-hidden bg-black/30 flex-shrink-0 border border-white/10 shadow-inner flex items-center justify-center">
+                    <div class="relative w-10 h-10 rounded-lg overflow-hidden bg-black/20 flex-shrink-0 border border-white/10 shadow-inner flex items-center justify-center">
                         <img id="track-thumb" src="" alt="" class="w-full h-full object-cover hidden">
-                        <i id="track-icon" class="fa-solid fa-music text-white/50 text-xs"></i>
+                        <i id="track-icon" class="fa-solid fa-music text-xs opacity-60"></i>
                     </div>
 
-                    <!-- Title and Status Display -->
                     <div class="flex flex-col min-w-0 flex-1">
                         <div class="marquee-container w-full">
                             <div id="marquee-wrapper" class="marquee-content">
-                                <span id="track-title" class="text-xs font-semibold tracking-tight text-white drop-shadow-sm">
+                                <span id="track-title" class="text-xs font-semibold tracking-tight drop-shadow-sm">
                                     Initializing Player...
                                 </span>
                             </div>
                         </div>
                         <div class="flex items-center gap-2 mt-0.5">
-                            <span id="status-badge" class="text-[10px] font-medium px-1.5 py-0.2 rounded bg-black/20 text-white/70 border border-white/10">
+                            <span id="status-badge" class="text-[10px] font-medium px-1.5 py-0.2 rounded bg-black/20 opacity-80 border border-white/10">
                                 Ready
                             </span>
-                            <span id="time-display" class="text-[11px] text-white/60 font-mono">
+                            <span id="time-display" class="text-[11px] opacity-75 font-mono">
                                 0:00 / 0:00
                             </span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Control Buttons: Playlists & Background Settings Drawer Toggle -->
+                <!-- Settings Button Toggle -->
                 <div class="flex items-center gap-1">
-                    <button id="settings-toggle" class="p-2 rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-colors" title="Customize Background & Playlist">
+                    <button id="settings-toggle" class="p-2 rounded-lg hover:bg-black/10 transition-colors" title="Customize Background & Playlist">
                         <i class="fa-solid fa-sliders text-xs"></i>
                     </button>
                 </div>
             </div>
 
-            <!-- Progress Scrubber -->
+            <!-- Scrubber Track Slider -->
             <div class="flex items-center gap-2 w-full pt-0.5">
                 <input type="range" id="progress-bar" min="0" max="100" value="0" step="0.1" class="w-full">
             </div>
 
-            <!-- Bottom Row: Playback & Audio Controls -->
+            <!-- Bottom Row: Volume Controls, Audio Buttons, and Shuffle Toggle -->
             <div class="flex items-center justify-between pt-0.5">
                 <!-- Volume Controls -->
                 <div class="flex items-center gap-1.5">
-                    <button id="mute-btn" class="p-1 text-white/60 hover:text-white transition-colors">
+                    <button id="mute-btn" class="p-1 opacity-80 hover:opacity-100 transition-opacity">
                         <i id="volume-icon" class="fa-solid fa-volume-high text-xs"></i>
                     </button>
                     <input type="range" id="volume-slider" min="0" max="100" value="100" class="w-14 sm:w-18 accent-bg">
                 </div>
 
-                <!-- Main Audio Action Buttons -->
+                <!-- Center Audio Control Buttons -->
                 <div class="flex items-center gap-2.5">
-                    <!-- Previous Track -->
-                    <button id="prev-btn" class="p-1.5 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-all active:scale-95" title="Previous Track">
+                    <button id="prev-btn" class="p-1.5 rounded-full hover:bg-black/10 transition-all active:scale-95" title="Previous Track">
                         <i class="fa-solid fa-backward-step text-xs"></i>
                     </button>
 
-                    <!-- Main Play / Pause Button -->
                     <button id="play-btn" class="w-9 h-9 rounded-full accent-bg text-white flex items-center justify-center shadow-lg hover:opacity-90 transition-all active:scale-95" title="Play/Pause">
                         <i id="play-icon" class="fa-solid fa-play text-xs ml-0.5"></i>
                     </button>
 
-                    <!-- Next Track -->
-                    <button id="next-btn" class="p-1.5 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-all active:scale-95" title="Next Track">
+                    <button id="next-btn" class="p-1.5 rounded-full hover:bg-black/10 transition-all active:scale-95" title="Next Track">
                         <i class="fa-solid fa-forward-step text-xs"></i>
                     </button>
                 </div>
 
-                <!-- Playlist Shuffle Button -->
+                <!-- Shuffle Toggle -->
                 <div class="flex items-center gap-1.5">
-                    <button id="shuffle-btn" class="p-1 text-white/50 hover:text-white transition-colors" title="Shuffle Playlist">
+                    <button id="shuffle-btn" class="p-1 opacity-50 hover:opacity-100 transition-opacity" title="Shuffle Playlist">
                         <i class="fa-solid fa-shuffle text-xs"></i>
                     </button>
                 </div>
             </div>
 
-            <!-- Settings Drawer (Customization Options & Playlist Input) -->
-            <div id="settings-drawer" class="hidden mt-2 pt-3 border-t border-white/10 flex flex-col gap-3 text-xs max-h-56 overflow-y-auto pr-1">
+            <!-- Settings Customization Panel (Drawer) -->
+            <div id="settings-drawer" class="hidden mt-2 pt-3 border-t border-black/10 flex flex-col gap-3 text-xs max-h-56 overflow-y-auto pr-1">
                 
-                <!-- Section 1: Background Color & Accent Picker -->
+                <!-- Card Background & Accent Color Pickers -->
                 <div class="grid grid-cols-2 gap-2">
                     <div>
-                        <label class="block text-[10px] font-semibold text-white/60 uppercase tracking-wider mb-1">Body Background</label>
-                        <div class="flex items-center gap-2 bg-black/20 p-1.5 rounded-lg border border-white/10">
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider mb-1 opacity-70">Solid Card Background</label>
+                        <div class="flex items-center gap-2 bg-black/10 p-1.5 rounded-lg border border-black/10">
                             <input type="color" id="bg-color-picker" value="#0f172a" class="w-6 h-6 rounded cursor-pointer border-0 bg-transparent">
-                            <span id="bg-color-val" class="font-mono text-[11px] text-white/80">#0f172a</span>
+                            <span id="bg-color-val" class="font-mono text-[11px] opacity-90">#0f172a</span>
                         </div>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-semibold text-white/60 uppercase tracking-wider mb-1">Accent Color</label>
-                        <div class="flex items-center gap-2 bg-black/20 p-1.5 rounded-lg border border-white/10">
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider mb-1 opacity-70">Accent Button Color</label>
+                        <div class="flex items-center gap-2 bg-black/10 p-1.5 rounded-lg border border-black/10">
                             <input type="color" id="accent-color-picker" value="#6366f1" class="w-6 h-6 rounded cursor-pointer border-0 bg-transparent">
-                            <span id="accent-color-val" class="font-mono text-[11px] text-white/80">#6366f1</span>
+                            <span id="accent-color-val" class="font-mono text-[11px] opacity-90">#6366f1</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Section 2: Custom Background Image Upload & URL -->
+                <!-- Custom Background Image Option -->
                 <div class="flex flex-col gap-1.5">
-                    <label class="block text-[10px] font-semibold text-white/60 uppercase tracking-wider">Custom Background Image</label>
+                    <label class="block text-[10px] font-semibold uppercase tracking-wider opacity-70">Optional Image / GIF Background</label>
                     <div class="flex gap-2">
-                        <input type="text" id="bg-url-input" placeholder="Paste Image / GIF URL..." class="flex-1 bg-black/20 border border-white/10 rounded-lg px-2.5 py-1 text-white text-xs focus:outline-none focus:border-white/30">
-                        <label class="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-white rounded-lg cursor-pointer transition-colors flex items-center gap-1 text-[11px]">
+                        <input type="text" id="bg-url-input" placeholder="Paste Image URL..." class="flex-1 bg-black/10 border border-black/10 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-black/30">
+                        <label class="px-2.5 py-1 bg-black/10 hover:bg-black/20 rounded-lg cursor-pointer transition-colors flex items-center gap-1 text-[11px]">
                             <i class="fa-solid fa-upload text-[10px]"></i>
                             <span>Upload</span>
                             <input type="file" id="bg-file-input" accept="image/*" class="hidden">
                         </label>
-                        <button id="remove-bg-btn" class="px-2 py-1 bg-red-500/20 hover:bg-red-500/40 text-red-300 rounded-lg transition-colors text-[11px]" title="Remove Image">
+                        <button id="remove-bg-btn" class="px-2 py-1 bg-red-500/20 hover:bg-red-500/40 text-red-500 rounded-lg transition-colors text-[11px]" title="Clear Image">
                             <i class="fa-solid fa-trash"></i>
                         </button>
                     </div>
                 </div>
 
-                <!-- Section 3: Overlay & Image Adjustments -->
+                <!-- Overlay Tint & Blur (Only for image mode) -->
                 <div class="grid grid-cols-2 gap-2">
                     <div>
-                        <label class="block text-[10px] font-semibold text-white/60 uppercase tracking-wider mb-1">Dim Tint</label>
-                        <input type="range" id="overlay-opacity" min="0" max="0.9" step="0.05" value="0.4" class="w-full">
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider mb-1 opacity-70">Image Dim Tint</label>
+                        <input type="range" id="overlay-opacity" min="0" max="0.9" step="0.05" value="0.3" class="w-full">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-semibold text-white/60 uppercase tracking-wider mb-1">Blur Effect</label>
-                        <input type="range" id="overlay-blur" min="0" max="20" step="1" value="8" class="w-full">
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider mb-1 opacity-70">Image Blur</label>
+                        <input type="range" id="overlay-blur" min="0" max="20" step="1" value="0" class="w-full">
                     </div>
                 </div>
 
-                <!-- Section 4: Playlist ID Switcher -->
-                <div class="flex flex-col gap-1 pt-1 border-t border-white/10">
-                    <label class="block text-[10px] font-semibold text-white/60 uppercase tracking-wider">YouTube Playlist URL or ID</label>
+                <!-- YouTube Playlist Switcher Input -->
+                <div class="flex flex-col gap-1 pt-1 border-t border-black/10">
+                    <label class="block text-[10px] font-semibold uppercase tracking-wider opacity-70">YouTube Playlist URL or ID</label>
                     <div class="flex gap-2">
-                        <input type="text" id="playlist-input" placeholder="e.g. PLJYIXcNxi-qw" class="flex-1 bg-black/20 border border-white/10 rounded-lg px-2.5 py-1 text-white text-xs focus:outline-none focus:border-white/30">
+                        <input type="text" id="playlist-input" placeholder="e.g. PLJYIXcNxi-qw" class="flex-1 bg-black/10 border border-black/10 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-black/30">
                         <button id="save-playlist-btn" class="px-3 py-1 accent-bg text-white font-semibold rounded-lg hover:opacity-90 transition-opacity text-xs">
                             Load
                         </button>
@@ -297,7 +260,7 @@
     </div>
 
     <script>
-        // State Configuration & Default Values
+        // App State
         let currentPlaylistId = 'PLJYIXcNxi-qw';
         let player = null;
         let isPlaying = false;
@@ -306,19 +269,22 @@
         let isDraggingScrubber = false;
         let isApiReady = false;
 
-        // Custom Preferences Object with LocalStorage Support
         const defaultPrefs = {
             bgColor: '#0f172a',
             accentColor: '#6366f1',
             bgImage: '',
-            overlayOpacity: 0.4,
-            overlayBlur: 8,
+            overlayOpacity: 0.3,
+            overlayBlur: 0,
             playlistId: 'PLJYIXcNxi-qw'
         };
 
         let prefs = { ...defaultPrefs };
 
         // DOM Elements
+        const playerCard = document.getElementById('player-card');
+        const bgImageLayer = document.getElementById('bg-image-layer');
+        const bgOverlayLayer = document.getElementById('bg-overlay-layer');
+        
         const playBtn = document.getElementById('play-btn');
         const playIcon = document.getElementById('play-icon');
         const prevBtn = document.getElementById('prev-btn');
@@ -334,7 +300,6 @@
         const volumeSlider = document.getElementById('volume-slider');
         const shuffleBtn = document.getElementById('shuffle-btn');
 
-        // Settings Controls
         const settingsToggle = document.getElementById('settings-toggle');
         const settingsDrawer = document.getElementById('settings-drawer');
         const bgColorPicker = document.getElementById('bg-color-picker');
@@ -348,9 +313,19 @@
         const overlayBlurSlider = document.getElementById('overlay-blur');
         const playlistInput = document.getElementById('playlist-input');
         const savePlaylistBtn = document.getElementById('save-playlist-btn');
-        const bgImageLayer = document.getElementById('bg-image');
 
-        // Load Persisted Preferences
+        function getLuminance(hex) {
+            let color = hex.replace('#', '');
+            if (color.length === 3) {
+                color = color.split('').map(c => c + c).join('');
+            }
+            const num = parseInt(color, 16);
+            const r = (num >> 16) & 255;
+            const g = (num >> 8) & 255;
+            const b = num & 255;
+            return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        }
+
         function loadPreferences() {
             try {
                 const saved = localStorage.getItem('notion_yt_player_prefs');
@@ -369,16 +344,13 @@
             try {
                 localStorage.setItem('notion_yt_player_prefs', JSON.stringify(prefs));
             } catch (e) {
-                console.warn('LocalStorage save failed:', e);
+                console.warn('LocalStorage save error:', e);
             }
         }
 
-        // Apply Preferences to DOM Styles
+        // Apply Preferences directly to card styling
         function applyPreferences() {
-            document.documentElement.style.setProperty('--bg-color', prefs.bgColor);
             document.documentElement.style.setProperty('--accent-color', prefs.accentColor);
-            document.documentElement.style.setProperty('--overlay-opacity', prefs.overlayOpacity);
-            document.documentElement.style.setProperty('--overlay-blur', prefs.overlayBlur + 'px');
 
             bgColorPicker.value = prefs.bgColor;
             bgColorVal.innerText = prefs.bgColor;
@@ -388,17 +360,39 @@
             overlayBlurSlider.value = prefs.overlayBlur;
 
             if (prefs.bgImage) {
+                // Image Background Mode
                 bgImageLayer.style.backgroundImage = `url('${prefs.bgImage}')`;
+                bgImageLayer.classList.remove('hidden');
+                bgOverlayLayer.classList.remove('hidden');
+                bgOverlayLayer.style.backgroundColor = 'rgba(0,0,0,' + prefs.overlayOpacity + ')';
+                bgOverlayLayer.style.backdropFilter = `blur(${prefs.overlayBlur}px)`;
+                bgOverlayLayer.style.webkitBackdropFilter = `blur(${prefs.overlayBlur}px)`;
                 bgUrlInput.value = prefs.bgImage.startsWith('data:') ? '' : prefs.bgImage;
+
+                // Force white text on image backgrounds
+                document.documentElement.style.setProperty('--text-color', '#ffffff');
+                document.documentElement.style.setProperty('--border-color', 'rgba(255, 255, 255, 0.2)');
             } else {
-                bgImageLayer.style.backgroundImage = 'none';
+                // Pure Solid Color Mode
+                bgImageLayer.classList.add('hidden');
+                bgOverlayLayer.classList.add('hidden');
+                playerCard.style.backgroundColor = prefs.bgColor;
                 bgUrlInput.value = '';
+
+                // Calculate Luminance to set high contrast text automatically
+                const isLight = getLuminance(prefs.bgColor) > 0.5;
+                if (isLight) {
+                    document.documentElement.style.setProperty('--text-color', '#0f172a');
+                    document.documentElement.style.setProperty('--border-color', 'rgba(15, 23, 42, 0.15)');
+                } else {
+                    document.documentElement.style.setProperty('--text-color', '#ffffff');
+                    document.documentElement.style.setProperty('--border-color', 'rgba(255, 255, 255, 0.15)');
+                }
             }
 
             playlistInput.value = currentPlaylistId;
         }
 
-        // Initialize YouTube IFrame API Safely
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         const firstScriptTag = document.getElementsByTagName('script')[0];
@@ -412,7 +406,6 @@
         function initializePlayer() {
             if (!isApiReady) return;
 
-            // Safe origin handling for Notion iframe & local environments
             let safeOrigin = 'https://www.youtube.com';
             try {
                 if (window.location.origin && window.location.origin !== 'null') {
@@ -450,7 +443,7 @@
             });
         }
 
-        function onPlayerReady(event) {
+        function onPlayerReady() {
             statusBadge.innerText = "Ready";
             updateTrackInfo();
             startProgressLoop();
@@ -494,7 +487,6 @@
                     trackIcon.classList.add('hidden');
                 }
 
-                // Check text width to trigger auto marquee scroll
                 const containerWidth = document.querySelector('.marquee-container').clientWidth;
                 if (trackTitle.scrollWidth > containerWidth) {
                     trackTitle.parentElement.classList.add('scroll-text');
@@ -529,7 +521,6 @@
             }, 500);
         }
 
-        // Control Event Listeners
         playBtn.addEventListener('click', () => {
             if (!player) return;
             if (isPlaying) {
@@ -591,7 +582,7 @@
             shuffleBtn.classList.toggle('accent-text', isShuffled);
         });
 
-        // Background & Customization Controls
+        // Settings Listeners
         bgColorPicker.addEventListener('input', (e) => {
             prefs.bgColor = e.target.value;
             bgColorVal.innerText = prefs.bgColor;
@@ -669,7 +660,7 @@
             }
         });
 
-        // Initialize App on Page Load
+        // Load on DOM ready
         window.addEventListener('DOMContentLoaded', () => {
             loadPreferences();
         });
