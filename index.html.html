@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" style="background: transparent !important;">
+<html lang="en" style="background: transparent !important; color-scheme: normal;">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,36 +7,39 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
-        /* Force root html & body to be 100% transparent for Notion embeds */
-        html, body {
+        /* STRICT NOTION TRANSPARENCY RESET - Eliminates white background canvas in iframe */
+        :root, html, body {
+            background-color: transparent !important;
             background: transparent !important;
+            color-scheme: dark light;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0;
             padding: 0;
-            height: 100vh;
-            width: 100vw;
+            width: 100%;
+            height: 100%;
             overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             user-select: none;
+            -webkit-user-select: none;
         }
 
+        /* Root CSS Variables for Customizable Card Styles */
         :root {
-            --card-bg-color: #0f172a;
+            --card-bg: rgba(15, 23, 42, 0.85);
             --accent-color: #6366f1;
-            --text-color: #ffffff;
-            --subtext-color: rgba(255, 255, 255, 0.7);
-            --border-color: rgba(255, 255, 255, 0.15);
-            --control-hover: rgba(255, 255, 255, 0.1);
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.7);
+            --border-color: rgba(255, 255, 255, 0.12);
+            --bg-dim-opacity: 0.4;
+            --bg-blur: 8px;
         }
 
         .accent-bg { background-color: var(--accent-color) !important; }
         .accent-text { color: var(--accent-color) !important; }
+        .accent-border { border-color: var(--accent-color) !important; }
 
-        /* Custom Scrubber Track Styling */
+        /* Scrubber and Volume Track Styling */
         input[type=range] {
             -webkit-appearance: none;
             width: 100%;
@@ -52,7 +55,7 @@
             height: 4px;
             cursor: pointer;
             border-radius: 9999px;
-            background: rgba(150, 150, 150, 0.3);
+            background: rgba(255, 255, 255, 0.2);
         }
 
         input[type=range]::-webkit-slider-thumb {
@@ -63,19 +66,20 @@
             cursor: pointer;
             -webkit-appearance: none;
             margin-top: -4px;
-            transition: transform 0.1s ease;
-            box-shadow: 0 0 6px rgba(0,0,0,0.2);
+            transition: transform 0.15s ease;
+            box-shadow: 0 0 8px rgba(0,0,0,0.4);
         }
 
         input[type=range]::-webkit-slider-thumb:hover {
-            transform: scale(1.25);
+            transform: scale(1.3);
         }
 
-        /* Marquee horizontal auto scroll for track titles */
+        /* Smooth Marquee Text Animation for Long Track Titles */
         .marquee-container {
             overflow: hidden;
             white-space: nowrap;
             position: relative;
+            width: 100%;
         }
 
         .marquee-content {
@@ -85,61 +89,69 @@
         }
 
         .scroll-text {
-            animation: marquee 12s linear infinite;
+            animation: marquee-anim 12s linear infinite;
         }
 
-        @keyframes marquee {
+        @keyframes marquee-anim {
             0% { transform: translateX(0%); }
             100% { transform: translateX(-50%); }
         }
 
+        /* Glassmorphism backdrop effect */
+        .glass-card {
+            background-color: var(--card-bg);
+            backdrop-filter: blur(var(--bg-blur));
+            -webkit-backdrop-filter: blur(var(--bg-blur));
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        /* Custom Scrollbar for Drawer Settings */
         ::-webkit-scrollbar {
             width: 4px;
         }
         ::-webkit-scrollbar-thumb {
-            background: rgba(150, 150, 150, 0.3);
+            background: rgba(255, 255, 255, 0.2);
             border-radius: 4px;
         }
     </style>
 </head>
-<body class="p-2">
+<body class="flex items-center justify-center min-h-screen p-2 sm:p-4 bg-transparent">
 
+    <!-- Main Player Card Container -->
     <div id="player-card" 
-         class="relative w-full max-w-xl rounded-2xl overflow-hidden shadow-2xl p-3.5 border transition-all duration-300 flex flex-col gap-2.5"
-         style="background-color: var(--card-bg-color); color: var(--text-color); border-color: var(--border-color); background-size: cover; background-position: center;">
+         class="glass-card relative w-full max-w-md sm:max-w-lg rounded-2xl p-4 shadow-2xl transition-all duration-300 flex flex-col gap-3 overflow-hidden">
         
-        <!-- Optional Background Image Layer with Adjustable Tint -->
+        <!-- Custom Background Image / GIF Layer with Dim Overlay -->
         <div id="bg-image-layer" class="absolute inset-0 z-0 bg-cover bg-center pointer-events-none hidden"></div>
-        <div id="bg-overlay-layer" class="absolute inset-0 z-0 pointer-events-none hidden"></div>
+        <div id="bg-overlay-layer" class="absolute inset-0 z-0 pointer-events-none hidden transition-all duration-300"></div>
 
-        <!-- Hidden YouTube API Target -->
+        <!-- Hidden YouTube API Player Element -->
         <div class="hidden">
             <div id="youtube-player"></div>
         </div>
 
-        <!-- Card Interactive Foreground Content -->
-        <div class="relative z-10 flex flex-col gap-2.5">
-            
-            <!-- Top Row: Track Thumbnail, Title, and Drawer Settings Toggle -->
+        <!-- Card Header & Metadata -->
+        <div class="relative z-10 flex flex-col gap-3">
             <div class="flex items-center justify-between gap-3">
                 
-                <!-- Track Details -->
+                <!-- Track Thumbnail & Title Section -->
                 <div class="flex items-center gap-3 overflow-hidden flex-1 min-w-0">
-                    <div class="relative w-10 h-10 rounded-lg overflow-hidden bg-black/20 flex-shrink-0 border border-white/10 shadow-inner flex items-center justify-center">
-                        <img id="track-thumb" src="" alt="" class="w-full h-full object-cover hidden">
-                        <i id="track-icon" class="fa-solid fa-music text-xs opacity-60"></i>
+                    <div class="relative w-12 h-12 rounded-xl overflow-hidden bg-black/30 flex-shrink-0 border border-white/10 shadow-inner flex items-center justify-center group">
+                        <img id="track-thumb" src="" alt="Thumbnail" class="w-full h-full object-cover hidden">
+                        <i id="track-icon" class="fa-solid fa-music text-sm opacity-60"></i>
                     </div>
 
                     <div class="flex flex-col min-w-0 flex-1">
-                        <div class="marquee-container w-full">
+                        <div class="marquee-container">
                             <div id="marquee-wrapper" class="marquee-content">
-                                <span id="track-title" class="text-xs font-semibold tracking-tight drop-shadow-sm">
+                                <span id="track-title" class="text-sm font-semibold tracking-tight drop-shadow-sm">
                                     Initializing Player...
                                 </span>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2 mt-0.5">
-                            <span id="status-badge" class="text-[10px] font-medium px-1.5 py-0.2 rounded bg-black/20 opacity-80 border border-white/10">
+                        <div class="flex items-center gap-2 mt-1">
+                            <span id="status-badge" class="text-[10px] font-medium px-2 py-0.5 rounded-md bg-black/20 opacity-80 border border-white/10">
                                 Ready
                             </span>
                             <span id="time-display" class="text-[11px] opacity-75 font-mono">
@@ -149,134 +161,158 @@
                     </div>
                 </div>
 
-                <!-- Settings Button Toggle -->
+                <!-- Action Toolbar Toggle Buttons -->
                 <div class="flex items-center gap-1">
-                    <button id="settings-toggle" class="p-2 rounded-lg hover:bg-black/10 transition-colors" title="Customize Background & Playlist">
-                        <i class="fa-solid fa-sliders text-xs"></i>
+                    <button id="help-toggle" class="p-2 rounded-lg hover:bg-white/10 transition-colors" title="How to embed in Notion">
+                        <i class="fa-solid fa-circle-question text-xs opacity-80"></i>
+                    </button>
+                    <button id="settings-toggle" class="p-2 rounded-lg hover:bg-white/10 transition-colors" title="Customize Card & Playlist">
+                        <i class="fa-solid fa-sliders text-xs opacity-80"></i>
                     </button>
                 </div>
             </div>
 
-            <!-- Scrubber Track Slider -->
-            <div class="flex items-center gap-2 w-full pt-0.5">
+            <!-- Interactive Scrubber Progress Bar -->
+            <div class="flex items-center gap-2 w-full pt-1">
                 <input type="range" id="progress-bar" min="0" max="100" value="0" step="0.1" class="w-full">
             </div>
 
-            <!-- Bottom Row: Volume Controls, Audio Buttons, and Shuffle Toggle -->
-            <div class="flex items-center justify-between pt-0.5">
-                <!-- Volume Controls -->
+            <!-- Audio Control Buttons Row -->
+            <div class="flex items-center justify-between pt-1">
+                <!-- Volume Control Slider -->
                 <div class="flex items-center gap-1.5">
-                    <button id="mute-btn" class="p-1 opacity-80 hover:opacity-100 transition-opacity">
+                    <button id="mute-btn" class="p-1.5 opacity-80 hover:opacity-100 transition-opacity">
                         <i id="volume-icon" class="fa-solid fa-volume-high text-xs"></i>
                     </button>
-                    <input type="range" id="volume-slider" min="0" max="100" value="100" class="w-14 sm:w-18 accent-bg">
+                    <input type="range" id="volume-slider" min="0" max="100" value="100" class="w-16 sm:w-20 accent-bg">
                 </div>
 
-                <!-- Center Audio Control Buttons -->
-                <div class="flex items-center gap-2.5">
-                    <button id="prev-btn" class="p-1.5 rounded-full hover:bg-black/10 transition-all active:scale-95" title="Previous Track">
+                <!-- Center Playback Controls -->
+                <div class="flex items-center gap-3">
+                    <button id="prev-btn" class="p-2 rounded-full hover:bg-white/10 transition-all active:scale-95" title="Previous Track">
                         <i class="fa-solid fa-backward-step text-xs"></i>
                     </button>
 
-                    <button id="play-btn" class="w-9 h-9 rounded-full accent-bg text-white flex items-center justify-center shadow-lg hover:opacity-90 transition-all active:scale-95" title="Play/Pause">
+                    <button id="play-btn" class="w-10 h-10 rounded-full accent-bg text-white flex items-center justify-center shadow-lg hover:opacity-90 transition-all active:scale-95" title="Play / Pause">
                         <i id="play-icon" class="fa-solid fa-play text-xs ml-0.5"></i>
                     </button>
 
-                    <button id="next-btn" class="p-1.5 rounded-full hover:bg-black/10 transition-all active:scale-95" title="Next Track">
+                    <button id="next-btn" class="p-2 rounded-full hover:bg-white/10 transition-all active:scale-95" title="Next Track">
                         <i class="fa-solid fa-forward-step text-xs"></i>
                     </button>
                 </div>
 
-                <!-- Shuffle Toggle -->
-                <div class="flex items-center gap-1.5">
-                    <button id="shuffle-btn" class="p-1 opacity-50 hover:opacity-100 transition-opacity" title="Shuffle Playlist">
+                <!-- Shuffle Switch Button -->
+                <div class="flex items-center gap-1">
+                    <button id="shuffle-btn" class="p-2 opacity-50 hover:opacity-100 transition-opacity" title="Toggle Shuffle">
                         <i class="fa-solid fa-shuffle text-xs"></i>
                     </button>
                 </div>
             </div>
 
-            <div id="settings-drawer" class="hidden mt-2 pt-3 border-t border-black/10 flex flex-col gap-3 text-xs max-h-56 overflow-y-auto pr-1">
+            <!-- Notion Help Guide Drawer -->
+            <div id="help-drawer" class="hidden mt-2 pt-3 border-t border-white/10 flex flex-col gap-2 text-xs opacity-90">
+                <div class="flex items-center justify-between font-semibold">
+                    <span><i class="fa-solid fa-circle-info mr-1 accent-text"></i> Notion Embed Guide</span>
+                    <button id="close-help-btn" class="text-xs opacity-60 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="bg-black/20 p-2.5 rounded-lg border border-white/10 text-[11px] leading-relaxed flex flex-col gap-1.5">
+                    <p><strong>1. Uploading HTML files endlessly loads?</strong> Notion's code upload block can only store raw files. It cannot execute JavaScript web apps directly.</p>
+                    <p><strong>2. Solution:</strong> Deploy this single HTML file to <strong>Vercel, GitHub Pages, or Netlify</strong>, then copy your live web link.</p>
+                    <p><strong>3. Embedding in Notion:</strong> In your Notion page, type <code class="bg-black/40 px-1 py-0.5 rounded text-indigo-300">/embed</code>, paste your Vercel URL, and click <strong>Embed Link</strong>.</p>
+                </div>
+            </div>
+
+            <!-- Settings & Playlist Switcher Drawer -->
+            <div id="settings-drawer" class="hidden mt-2 pt-3 border-t border-white/10 flex flex-col gap-3 text-xs max-h-64 overflow-y-auto pr-1">
                 
-                <!-- Card Background & Accent Color Pickers -->
+                <!-- YouTube Playlist / Video Input -->
+                <div class="flex flex-col gap-1.5">
+                    <label class="block text-[10px] font-semibold uppercase tracking-wider opacity-70">YouTube Playlist ID or URL</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="playlist-input" placeholder="e.g. PLJYIXcNxi-qw or playlist URL" class="flex-1 bg-black/20 border border-white/15 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-400">
+                        <button id="save-playlist-btn" class="px-3 py-1.5 accent-bg text-white font-semibold rounded-lg hover:opacity-90 transition-opacity text-xs">
+                            Load
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Theme Color Controls -->
                 <div class="grid grid-cols-2 gap-2">
                     <div>
-                        <label class="block text-[10px] font-semibold uppercase tracking-wider mb-1 opacity-70">Solid Card Background</label>
-                        <div class="flex items-center gap-2 bg-black/10 p-1.5 rounded-lg border border-black/10">
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider mb-1 opacity-70">Card Solid Background</label>
+                        <div class="flex items-center gap-2 bg-black/20 p-1.5 rounded-lg border border-white/15">
                             <input type="color" id="bg-color-picker" value="#0f172a" class="w-6 h-6 rounded cursor-pointer border-0 bg-transparent">
-                            <span id="bg-color-val" class="font-mono text-[11px] opacity-90">#0f172a</span>
+                            <span id="bg-color-val" class="font-mono text-[11px]">#0f172a</span>
                         </div>
                     </div>
                     <div>
                         <label class="block text-[10px] font-semibold uppercase tracking-wider mb-1 opacity-70">Accent Button Color</label>
-                        <div class="flex items-center gap-2 bg-black/10 p-1.5 rounded-lg border border-black/10">
+                        <div class="flex items-center gap-2 bg-black/20 p-1.5 rounded-lg border border-white/15">
                             <input type="color" id="accent-color-picker" value="#6366f1" class="w-6 h-6 rounded cursor-pointer border-0 bg-transparent">
-                            <span id="accent-color-val" class="font-mono text-[11px] opacity-90">#6366f1</span>
+                            <span id="accent-color-val" class="font-mono text-[11px]">#6366f1</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Custom Background Image Option -->
+                <!-- Card Opacity & Blur Sliders -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider mb-1 opacity-70">Card Opacity</label>
+                        <input type="range" id="card-opacity-slider" min="0.2" max="1" step="0.05" value="0.85" class="w-full">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider mb-1 opacity-70">Glass Blur</label>
+                        <input type="range" id="card-blur-slider" min="0" max="25" step="1" value="8" class="w-full">
+                    </div>
+                </div>
+
+                <!-- Custom Background Image / GIF -->
                 <div class="flex flex-col gap-1.5">
-                    <label class="block text-[10px] font-semibold uppercase tracking-wider opacity-70">Optional Image / GIF Background</label>
+                    <label class="block text-[10px] font-semibold uppercase tracking-wider opacity-70">Background Image / GIF Cover</label>
                     <div class="flex gap-2">
-                        <input type="text" id="bg-url-input" placeholder="Paste Image URL..." class="flex-1 bg-black/10 border border-black/10 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-black/30">
-                        <label class="px-2.5 py-1 bg-black/10 hover:bg-black/20 rounded-lg cursor-pointer transition-colors flex items-center gap-1 text-[11px]">
+                        <input type="text" id="bg-url-input" placeholder="Paste Image / GIF URL..." class="flex-1 bg-black/20 border border-white/15 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-400">
+                        <label class="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg cursor-pointer transition-colors flex items-center gap-1 text-[11px]">
                             <i class="fa-solid fa-upload text-[10px]"></i>
                             <span>Upload</span>
                             <input type="file" id="bg-file-input" accept="image/*" class="hidden">
                         </label>
-                        <button id="remove-bg-btn" class="px-2 py-1 bg-red-500/20 hover:bg-red-500/40 text-red-500 rounded-lg transition-colors text-[11px]" title="Clear Image">
+                        <button id="remove-bg-btn" class="px-2.5 py-1.5 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded-lg transition-colors text-[11px]" title="Clear Image">
                             <i class="fa-solid fa-trash"></i>
                         </button>
                     </div>
                 </div>
 
-                <!-- Overlay Tint & Blur (Only for image mode) -->
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-[10px] font-semibold uppercase tracking-wider mb-1 opacity-70">Image Dim Tint</label>
-                        <input type="range" id="overlay-opacity" min="0" max="0.9" step="0.05" value="0.3" class="w-full">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-semibold uppercase tracking-wider mb-1 opacity-70">Image Blur</label>
-                        <input type="range" id="overlay-blur" min="0" max="20" step="1" value="0" class="w-full">
-                    </div>
-                </div>
-
-                <!-- YouTube Playlist Switcher Input -->
-                <div class="flex flex-col gap-1 pt-1 border-t border-black/10">
-                    <label class="block text-[10px] font-semibold uppercase tracking-wider opacity-70">YouTube Playlist URL or ID</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="playlist-input" placeholder="e.g. PLJYIXcNxi-qw" class="flex-1 bg-black/10 border border-black/10 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-black/30">
-                        <button id="save-playlist-btn" class="px-3 py-1 accent-bg text-white font-semibold rounded-lg hover:opacity-90 transition-opacity text-xs">
-                            Load
-                        </button>
-                    </div>
+                <!-- Image Dim Overlay Tint -->
+                <div>
+                    <label class="block text-[10px] font-semibold uppercase tracking-wider mb-1 opacity-70">Background Image Dimming</label>
+                    <input type="range" id="overlay-dim-slider" min="0" max="0.9" step="0.05" value="0.4" class="w-full">
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // App State
-        let currentPlaylistId = 'PLJYIXcNxi-qw';
-        let player = null;
-        let isPlaying = false;
-        let isMuted = false;
-        let updateInterval = null;
-        let isDraggingScrubber = false;
-        let isApiReady = false;
-
+        // Application Preferences State
         const defaultPrefs = {
             bgColor: '#0f172a',
             accentColor: '#6366f1',
+            cardOpacity: 0.85,
+            cardBlur: 8,
             bgImage: '',
-            overlayOpacity: 0.3,
-            overlayBlur: 0,
+            bgDim: 0.4,
             playlistId: 'PLJYIXcNxi-qw'
         };
 
         let prefs = { ...defaultPrefs };
+        let currentPlaylistId = defaultPrefs.playlistId;
+        let player = null;
+        let isPlaying = false;
+        let isMuted = false;
+        let isShuffled = false;
+        let updateInterval = null;
+        let isDraggingScrubber = false;
+        let isApiReady = false;
 
         // DOM Elements
         const playerCard = document.getElementById('player-card');
@@ -300,18 +336,24 @@
 
         const settingsToggle = document.getElementById('settings-toggle');
         const settingsDrawer = document.getElementById('settings-drawer');
+        const helpToggle = document.getElementById('help-toggle');
+        const helpDrawer = document.getElementById('help-drawer');
+        const closeHelpBtn = document.getElementById('close-help-btn');
+
         const bgColorPicker = document.getElementById('bg-color-picker');
         const bgColorVal = document.getElementById('bg-color-val');
         const accentColorPicker = document.getElementById('accent-color-picker');
         const accentColorVal = document.getElementById('accent-color-val');
+        const cardOpacitySlider = document.getElementById('card-opacity-slider');
+        const cardBlurSlider = document.getElementById('card-blur-slider');
         const bgUrlInput = document.getElementById('bg-url-input');
         const bgFileInput = document.getElementById('bg-file-input');
         const removeBgBtn = document.getElementById('remove-bg-btn');
-        const overlayOpacitySlider = document.getElementById('overlay-opacity');
-        const overlayBlurSlider = document.getElementById('overlay-blur');
+        const overlayDimSlider = document.getElementById('overlay-dim-slider');
         const playlistInput = document.getElementById('playlist-input');
         const savePlaylistBtn = document.getElementById('save-playlist-btn');
 
+        // Hex Color Luminance Checker
         function getLuminance(hex) {
             let color = hex.replace('#', '');
             if (color.length === 3) {
@@ -324,9 +366,22 @@
             return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
         }
 
+        // Convert HEX to RGBA string
+        function hexToRgba(hex, alpha) {
+            let color = hex.replace('#', '');
+            if (color.length === 3) {
+                color = color.split('').map(c => c + c).join('');
+            }
+            const num = parseInt(color, 16);
+            const r = (num >> 16) & 255;
+            const g = (num >> 8) & 255;
+            const b = num & 255;
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
         function loadPreferences() {
             try {
-                const saved = localStorage.getItem('notion_yt_player_prefs');
+                const saved = localStorage.getItem('notion_yt_player_prefs_v2');
                 if (saved) {
                     prefs = { ...defaultPrefs, ...JSON.parse(saved) };
                 }
@@ -334,56 +389,54 @@
                 console.warn('LocalStorage unavailable:', e);
             }
 
-            currentPlaylistId = prefs.playlistId || 'PLJYIXcNxi-qw';
+            currentPlaylistId = prefs.playlistId || defaultPrefs.playlistId;
             applyPreferences();
         }
 
         function savePreferences() {
             try {
-                localStorage.setItem('notion_yt_player_prefs', JSON.stringify(prefs));
+                localStorage.setItem('notion_yt_player_prefs_v2', JSON.stringify(prefs));
             } catch (e) {
                 console.warn('LocalStorage save error:', e);
             }
         }
 
-        // Apply Preferences directly to card styling
+        // Apply Preferences to Player Styling
         function applyPreferences() {
             document.documentElement.style.setProperty('--accent-color', prefs.accentColor);
+            document.documentElement.style.setProperty('--bg-blur', `${prefs.cardBlur}px`);
+            
+            const cardBgRgba = hexToRgba(prefs.bgColor, prefs.cardOpacity);
+            document.documentElement.style.setProperty('--card-bg', cardBgRgba);
 
             bgColorPicker.value = prefs.bgColor;
             bgColorVal.innerText = prefs.bgColor;
             accentColorPicker.value = prefs.accentColor;
             accentColorVal.innerText = prefs.accentColor;
-            overlayOpacitySlider.value = prefs.overlayOpacity;
-            overlayBlurSlider.value = prefs.overlayBlur;
+            cardOpacitySlider.value = prefs.cardOpacity;
+            cardBlurSlider.value = prefs.cardBlur;
+            overlayDimSlider.value = prefs.bgDim;
 
             if (prefs.bgImage) {
-                // Image Background Mode
                 bgImageLayer.style.backgroundImage = `url('${prefs.bgImage}')`;
                 bgImageLayer.classList.remove('hidden');
                 bgOverlayLayer.classList.remove('hidden');
-                bgOverlayLayer.style.backgroundColor = 'rgba(0,0,0,' + prefs.overlayOpacity + ')';
-                bgOverlayLayer.style.backdropFilter = `blur(${prefs.overlayBlur}px)`;
-                bgOverlayLayer.style.webkitBackdropFilter = `blur(${prefs.overlayBlur}px)`;
+                bgOverlayLayer.style.backgroundColor = `rgba(0,0,0,${prefs.bgDim})`;
                 bgUrlInput.value = prefs.bgImage.startsWith('data:') ? '' : prefs.bgImage;
 
-                // Force white text on image backgrounds
-                document.documentElement.style.setProperty('--text-color', '#ffffff');
+                document.documentElement.style.setProperty('--text-primary', '#ffffff');
                 document.documentElement.style.setProperty('--border-color', 'rgba(255, 255, 255, 0.2)');
             } else {
-                // Pure Solid Color Mode
                 bgImageLayer.classList.add('hidden');
                 bgOverlayLayer.classList.add('hidden');
-                playerCard.style.backgroundColor = prefs.bgColor;
                 bgUrlInput.value = '';
 
-                // Calculate Luminance to set high contrast text automatically
-                const isLight = getLuminance(prefs.bgColor) > 0.5;
-                if (isLight) {
-                    document.documentElement.style.setProperty('--text-color', '#0f172a');
+                const isLight = getLuminance(prefs.bgColor) > 0.65;
+                if (isLight && prefs.cardOpacity > 0.5) {
+                    document.documentElement.style.setProperty('--text-primary', '#0f172a');
                     document.documentElement.style.setProperty('--border-color', 'rgba(15, 23, 42, 0.15)');
                 } else {
-                    document.documentElement.style.setProperty('--text-color', '#ffffff');
+                    document.documentElement.style.setProperty('--text-primary', '#ffffff');
                     document.documentElement.style.setProperty('--border-color', 'rgba(255, 255, 255, 0.15)');
                 }
             }
@@ -391,15 +444,16 @@
             playlistInput.value = currentPlaylistId;
         }
 
+        // Load YouTube IFrame API Dynamically
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         const firstScriptTag = document.getElementsByTagName('script')[0];
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-        function onYouTubeIframeAPIReady() {
+        window.onYouTubeIframeAPIReady = function() {
             isApiReady = true;
             initializePlayer();
-        }
+        };
 
         function initializePlayer() {
             if (!isApiReady) return;
@@ -572,15 +626,16 @@
             }
         });
 
-        let isShuffled = false;
         shuffleBtn.addEventListener('click', () => {
             if (!player) return;
             isShuffled = !isShuffled;
             player.setShuffle(isShuffled);
             shuffleBtn.classList.toggle('accent-text', isShuffled);
+            shuffleBtn.classList.toggle('opacity-50', !isShuffled);
+            shuffleBtn.classList.toggle('opacity-100', isShuffled);
         });
 
-        // Settings Listeners
+        // Preference Settings Listeners
         bgColorPicker.addEventListener('input', (e) => {
             prefs.bgColor = e.target.value;
             bgColorVal.innerText = prefs.bgColor;
@@ -591,6 +646,18 @@
         accentColorPicker.addEventListener('input', (e) => {
             prefs.accentColor = e.target.value;
             accentColorVal.innerText = prefs.accentColor;
+            applyPreferences();
+            savePreferences();
+        });
+
+        cardOpacitySlider.addEventListener('input', (e) => {
+            prefs.cardOpacity = e.target.value;
+            applyPreferences();
+            savePreferences();
+        });
+
+        cardBlurSlider.addEventListener('input', (e) => {
+            prefs.cardBlur = e.target.value;
             applyPreferences();
             savePreferences();
         });
@@ -620,20 +687,24 @@
             savePreferences();
         });
 
-        overlayOpacitySlider.addEventListener('input', (e) => {
-            prefs.overlayOpacity = e.target.value;
-            applyPreferences();
-            savePreferences();
-        });
-
-        overlayBlurSlider.addEventListener('input', (e) => {
-            prefs.overlayBlur = e.target.value;
+        overlayDimSlider.addEventListener('input', (e) => {
+            prefs.bgDim = e.target.value;
             applyPreferences();
             savePreferences();
         });
 
         settingsToggle.addEventListener('click', () => {
             settingsDrawer.classList.toggle('hidden');
+            helpDrawer.classList.add('hidden');
+        });
+
+        helpToggle.addEventListener('click', () => {
+            helpDrawer.classList.toggle('hidden');
+            settingsDrawer.classList.add('hidden');
+        });
+
+        closeHelpBtn.addEventListener('click', () => {
+            helpDrawer.classList.add('hidden');
         });
 
         function extractPlaylistId(input) {
@@ -658,7 +729,7 @@
             }
         });
 
-        // Load on DOM ready
+        // Load Preferences on Initialization
         window.addEventListener('DOMContentLoaded', () => {
             loadPreferences();
         });
