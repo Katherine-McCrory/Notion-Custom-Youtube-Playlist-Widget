@@ -1,738 +1,453 @@
 <!DOCTYPE html>
-<html lang="en" style="background: transparent !important; color-scheme: normal;">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notion YouTube Music Widget</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        
-        /* STRICT NOTION TRANSPARENCY RESET - Eliminates white background canvas in iframe */
-        :root, html, body {
-            background-color: transparent !important;
-            background: transparent !important;
-            color-scheme: dark light;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            user-select: none;
-            -webkit-user-select: none;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notion YouTube Music Widget</title>
+  
+  <!-- Force dark color scheme to prevent Notion's iframe white background canvas -->
+  <meta name="color-scheme" content="dark">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+  
+  <style>
+    /* Complete canvas & page background removal for Notion embeds */
+    :root, html, body {
+      background-color: transparent !important;
+      background: transparent !important;
+      color-scheme: dark !important;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+    }
 
-        /* Root CSS Variables for Customizable Card Styles */
-        :root {
-            --card-bg: rgba(15, 23, 42, 0.85);
-            --accent-color: #6366f1;
-            --text-primary: #ffffff;
-            --text-secondary: rgba(255, 255, 255, 0.7);
-            --border-color: rgba(255, 255, 255, 0.12);
-            --bg-dim-opacity: 0.4;
-            --bg-blur: 8px;
-        }
+    /* Custom Marquee animation for long song titles */
+    .marquee-container {
+      overflow: hidden;
+      white-space: nowrap;
+      position: relative;
+    }
+    .marquee-content {
+      display: inline-block;
+      padding-left: 100%;
+      animation: marquee 12s linear infinite;
+    }
+    .marquee-container:hover .marquee-content {
+      animation-play-state: paused;
+    }
+    @keyframes marquee {
+      0%   { transform: translate(0, 0); }
+      100% { transform: translate(-100%, 0); }
+    }
 
-        .accent-bg { background-color: var(--accent-color) !important; }
-        .accent-text { color: var(--accent-color) !important; }
-        .accent-border { border-color: var(--accent-color) !important; }
+    /* Slider Styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 9999px;
+      height: 6px;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 14px;
+      width: 14px;
+      border-radius: 50%;
+      background: var(--accent-color, #8b5cf6);
+      cursor: pointer;
+      transition: transform 0.1s ease;
+    }
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
 
-        /* Scrubber and Volume Track Styling */
-        input[type=range] {
-            -webkit-appearance: none;
-            width: 100%;
-            background: transparent;
-        }
+    /* Glassmorphism card default styles */
+    .widget-card {
+      background-color: var(--card-bg, rgba(15, 23, 42, 0.85));
+      backdrop-filter: blur(var(--card-blur, 12px));
+      -webkit-backdrop-filter: blur(var(--card-blur, 12px));
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
 
-        input[type=range]:focus {
-            outline: none;
-        }
-
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 4px;
-            cursor: pointer;
-            border-radius: 9999px;
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        input[type=range]::-webkit-slider-thumb {
-            height: 12px;
-            width: 12px;
-            border-radius: 50%;
-            background: var(--accent-color);
-            cursor: pointer;
-            -webkit-appearance: none;
-            margin-top: -4px;
-            transition: transform 0.15s ease;
-            box-shadow: 0 0 8px rgba(0,0,0,0.4);
-        }
-
-        input[type=range]::-webkit-slider-thumb:hover {
-            transform: scale(1.3);
-        }
-
-        /* Smooth Marquee Text Animation for Long Track Titles */
-        .marquee-container {
-            overflow: hidden;
-            white-space: nowrap;
-            position: relative;
-            width: 100%;
-        }
-
-        .marquee-content {
-            display: inline-block;
-            white-space: nowrap;
-            will-change: transform;
-        }
-
-        .scroll-text {
-            animation: marquee-anim 12s linear infinite;
-        }
-
-        @keyframes marquee-anim {
-            0% { transform: translateX(0%); }
-            100% { transform: translateX(-50%); }
-        }
-
-        /* Glassmorphism backdrop effect */
-        .glass-card {
-            background-color: var(--card-bg);
-            backdrop-filter: blur(var(--bg-blur));
-            -webkit-backdrop-filter: blur(var(--bg-blur));
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-        }
-
-        /* Custom Scrollbar for Drawer Settings */
-        ::-webkit-scrollbar {
-            width: 4px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 4px;
-        }
-    </style>
+    /* Hidden YouTube iframe player */
+    #yt-player-frame {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+      left: -9999px;
+    }
+  </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-2 sm:p-4 bg-transparent">
+<body class="flex items-center justify-center min-h-screen p-2 select-none">
 
-    <!-- Main Player Card Container -->
-    <div id="player-card" 
-         class="glass-card relative w-full max-w-md sm:max-w-lg rounded-2xl p-4 shadow-2xl transition-all duration-300 flex flex-col gap-3 overflow-hidden">
-        
-        <!-- Custom Background Image / GIF Layer with Dim Overlay -->
-        <div id="bg-image-layer" class="absolute inset-0 z-0 bg-cover bg-center pointer-events-none hidden"></div>
-        <div id="bg-overlay-layer" class="absolute inset-0 z-0 pointer-events-none hidden transition-all duration-300"></div>
+  <!-- Main Widget Container -->
+  <div id="widget" class="widget-card relative w-full max-w-md rounded-2xl p-4 shadow-2xl text-white transition-all duration-300 overflow-hidden">
+    
+    <!-- Custom Background Image/GIF Layer -->
+    <div id="bg-overlay" class="absolute inset-0 bg-cover bg-center pointer-events-none transition-opacity duration-300 opacity-0" style="z-index: 0;"></div>
+    <div id="bg-dim" class="absolute inset-0 bg-black/40 pointer-events-none transition-opacity duration-300 opacity-0" style="z-index: 1;"></div>
 
-        <!-- Hidden YouTube API Player Element -->
-        <div class="hidden">
-            <div id="youtube-player"></div>
+    <!-- Content Wrapper -->
+    <div class="relative z-10 flex flex-col gap-3">
+      
+      <!-- Top Bar: Status & Settings Button -->
+      <div class="flex items-center justify-between text-xs text-white/70">
+        <div class="flex items-center gap-2">
+          <i class="fa-brands fa-youtube text-red-500 text-sm"></i>
+          <span id="player-status" class="font-medium tracking-wide">Ready</span>
+        </div>
+        <button id="settings-toggle" class="hover:text-white transition-colors p-1" title="Widget Settings">
+          <i class="fa-solid fa-sliders text-sm"></i>
+        </button>
+      </div>
+
+      <!-- Main Track Info Box -->
+      <div class="flex items-center gap-3">
+        <!-- Thumbnail -->
+        <div class="relative group w-14 h-14 flex-shrink-0 rounded-xl overflow-hidden bg-black/40 border border-white/10 shadow-inner">
+          <img id="track-thumb" src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=150&auto=format&fit=crop&q=80" alt="Thumbnail" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
         </div>
 
-        <!-- Card Header & Metadata -->
-        <div class="relative z-10 flex flex-col gap-3">
-            <div class="flex items-center justify-between gap-3">
-                
-                <!-- Track Thumbnail & Title Section -->
-                <div class="flex items-center gap-3 overflow-hidden flex-1 min-w-0">
-                    <div class="relative w-12 h-12 rounded-xl overflow-hidden bg-black/30 flex-shrink-0 border border-white/10 shadow-inner flex items-center justify-center group">
-                        <img id="track-thumb" src="" alt="Thumbnail" class="w-full h-full object-cover hidden">
-                        <i id="track-icon" class="fa-solid fa-music text-sm opacity-60"></i>
-                    </div>
-
-                    <div class="flex flex-col min-w-0 flex-1">
-                        <div class="marquee-container">
-                            <div id="marquee-wrapper" class="marquee-content">
-                                <span id="track-title" class="text-sm font-semibold tracking-tight drop-shadow-sm">
-                                    Initializing Player...
-                                </span>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2 mt-1">
-                            <span id="status-badge" class="text-[10px] font-medium px-2 py-0.5 rounded-md bg-black/20 opacity-80 border border-white/10">
-                                Ready
-                            </span>
-                            <span id="time-display" class="text-[11px] opacity-75 font-mono">
-                                0:00 / 0:00
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Action Toolbar Toggle Buttons -->
-                <div class="flex items-center gap-1">
-                    <button id="help-toggle" class="p-2 rounded-lg hover:bg-white/10 transition-colors" title="How to embed in Notion">
-                        <i class="fa-solid fa-circle-question text-xs opacity-80"></i>
-                    </button>
-                    <button id="settings-toggle" class="p-2 rounded-lg hover:bg-white/10 transition-colors" title="Customize Card & Playlist">
-                        <i class="fa-solid fa-sliders text-xs opacity-80"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Interactive Scrubber Progress Bar -->
-            <div class="flex items-center gap-2 w-full pt-1">
-                <input type="range" id="progress-bar" min="0" max="100" value="0" step="0.1" class="w-full">
-            </div>
-
-            <!-- Audio Control Buttons Row -->
-            <div class="flex items-center justify-between pt-1">
-                <!-- Volume Control Slider -->
-                <div class="flex items-center gap-1.5">
-                    <button id="mute-btn" class="p-1.5 opacity-80 hover:opacity-100 transition-opacity">
-                        <i id="volume-icon" class="fa-solid fa-volume-high text-xs"></i>
-                    </button>
-                    <input type="range" id="volume-slider" min="0" max="100" value="100" class="w-16 sm:w-20 accent-bg">
-                </div>
-
-                <!-- Center Playback Controls -->
-                <div class="flex items-center gap-3">
-                    <button id="prev-btn" class="p-2 rounded-full hover:bg-white/10 transition-all active:scale-95" title="Previous Track">
-                        <i class="fa-solid fa-backward-step text-xs"></i>
-                    </button>
-
-                    <button id="play-btn" class="w-10 h-10 rounded-full accent-bg text-white flex items-center justify-center shadow-lg hover:opacity-90 transition-all active:scale-95" title="Play / Pause">
-                        <i id="play-icon" class="fa-solid fa-play text-xs ml-0.5"></i>
-                    </button>
-
-                    <button id="next-btn" class="p-2 rounded-full hover:bg-white/10 transition-all active:scale-95" title="Next Track">
-                        <i class="fa-solid fa-forward-step text-xs"></i>
-                    </button>
-                </div>
-
-                <!-- Shuffle Switch Button -->
-                <div class="flex items-center gap-1">
-                    <button id="shuffle-btn" class="p-2 opacity-50 hover:opacity-100 transition-opacity" title="Toggle Shuffle">
-                        <i class="fa-solid fa-shuffle text-xs"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Notion Help Guide Drawer -->
-            <div id="help-drawer" class="hidden mt-2 pt-3 border-t border-white/10 flex flex-col gap-2 text-xs opacity-90">
-                <div class="flex items-center justify-between font-semibold">
-                    <span><i class="fa-solid fa-circle-info mr-1 accent-text"></i> Notion Embed Guide</span>
-                    <button id="close-help-btn" class="text-xs opacity-60 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-                <div class="bg-black/20 p-2.5 rounded-lg border border-white/10 text-[11px] leading-relaxed flex flex-col gap-1.5">
-                    <p><strong>1. Uploading HTML files endlessly loads?</strong> Notion's code upload block can only store raw files. It cannot execute JavaScript web apps directly.</p>
-                    <p><strong>2. Solution:</strong> Deploy this single HTML file to <strong>Vercel, GitHub Pages, or Netlify</strong>, then copy your live web link.</p>
-                    <p><strong>3. Embedding in Notion:</strong> In your Notion page, type <code class="bg-black/40 px-1 py-0.5 rounded text-indigo-300">/embed</code>, paste your Vercel URL, and click <strong>Embed Link</strong>.</p>
-                </div>
-            </div>
-
-            <!-- Settings & Playlist Switcher Drawer -->
-            <div id="settings-drawer" class="hidden mt-2 pt-3 border-t border-white/10 flex flex-col gap-3 text-xs max-h-64 overflow-y-auto pr-1">
-                
-                <!-- YouTube Playlist / Video Input -->
-                <div class="flex flex-col gap-1.5">
-                    <label class="block text-[10px] font-semibold uppercase tracking-wider opacity-70">YouTube Playlist ID or URL</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="playlist-input" placeholder="e.g. PLJYIXcNxi-qw or playlist URL" class="flex-1 bg-black/20 border border-white/15 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-400">
-                        <button id="save-playlist-btn" class="px-3 py-1.5 accent-bg text-white font-semibold rounded-lg hover:opacity-90 transition-opacity text-xs">
-                            Load
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Theme Color Controls -->
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-[10px] font-semibold uppercase tracking-wider mb-1 opacity-70">Card Solid Background</label>
-                        <div class="flex items-center gap-2 bg-black/20 p-1.5 rounded-lg border border-white/15">
-                            <input type="color" id="bg-color-picker" value="#0f172a" class="w-6 h-6 rounded cursor-pointer border-0 bg-transparent">
-                            <span id="bg-color-val" class="font-mono text-[11px]">#0f172a</span>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-semibold uppercase tracking-wider mb-1 opacity-70">Accent Button Color</label>
-                        <div class="flex items-center gap-2 bg-black/20 p-1.5 rounded-lg border border-white/15">
-                            <input type="color" id="accent-color-picker" value="#6366f1" class="w-6 h-6 rounded cursor-pointer border-0 bg-transparent">
-                            <span id="accent-color-val" class="font-mono text-[11px]">#6366f1</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Card Opacity & Blur Sliders -->
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-[10px] font-semibold uppercase tracking-wider mb-1 opacity-70">Card Opacity</label>
-                        <input type="range" id="card-opacity-slider" min="0.2" max="1" step="0.05" value="0.85" class="w-full">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-semibold uppercase tracking-wider mb-1 opacity-70">Glass Blur</label>
-                        <input type="range" id="card-blur-slider" min="0" max="25" step="1" value="8" class="w-full">
-                    </div>
-                </div>
-
-                <!-- Custom Background Image / GIF -->
-                <div class="flex flex-col gap-1.5">
-                    <label class="block text-[10px] font-semibold uppercase tracking-wider opacity-70">Background Image / GIF Cover</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="bg-url-input" placeholder="Paste Image / GIF URL..." class="flex-1 bg-black/20 border border-white/15 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-400">
-                        <label class="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg cursor-pointer transition-colors flex items-center gap-1 text-[11px]">
-                            <i class="fa-solid fa-upload text-[10px]"></i>
-                            <span>Upload</span>
-                            <input type="file" id="bg-file-input" accept="image/*" class="hidden">
-                        </label>
-                        <button id="remove-bg-btn" class="px-2.5 py-1.5 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded-lg transition-colors text-[11px]" title="Clear Image">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Image Dim Overlay Tint -->
-                <div>
-                    <label class="block text-[10px] font-semibold uppercase tracking-wider mb-1 opacity-70">Background Image Dimming</label>
-                    <input type="range" id="overlay-dim-slider" min="0" max="0.9" step="0.05" value="0.4" class="w-full">
-                </div>
-            </div>
+        <!-- Track Title & Channel -->
+        <div class="flex-1 min-w-0">
+          <div class="marquee-container w-full">
+            <h1 id="track-title" class="marquee-content font-bold text-sm text-white">Select or Load a Playlist</h1>
+          </div>
+          <p id="track-author" class="text-xs text-white/60 truncate mt-0.5">YouTube Music</p>
         </div>
+      </div>
+
+      <!-- Scrubber Progress Bar -->
+      <div class="space-y-1">
+        <input type="range" id="progress-bar" min="0" max="100" value="0" class="w-full cursor-pointer">
+        <div class="flex justify-between text-[10px] text-white/50 font-mono">
+          <span id="curr-time">0:00</span>
+          <span id="total-time">0:00</span>
+        </div>
+      </div>
+
+      <!-- Playback Controls -->
+      <div class="flex items-center justify-between pt-1">
+        <!-- Volume Control -->
+        <div class="flex items-center gap-2 w-28">
+          <button id="mute-btn" class="text-white/70 hover:text-white transition-colors">
+            <i id="volume-icon" class="fa-solid fa-volume-high text-xs"></i>
+          </button>
+          <input type="range" id="volume-slider" min="0" max="100" value="80" class="w-full">
+        </div>
+
+        <!-- Center Buttons: Prev, Play/Pause, Next -->
+        <div class="flex items-center gap-3">
+          <button id="prev-btn" class="text-white/70 hover:text-white transition-colors text-sm p-1">
+            <i class="fa-solid fa-backward-step"></i>
+          </button>
+          <button id="play-btn" class="w-10 h-10 rounded-full bg-violet-600 text-white flex items-center justify-center hover:scale-105 transition-all shadow-lg shadow-violet-600/30">
+            <i id="play-icon" class="fa-solid fa-play text-sm translate-x-0.5"></i>
+          </button>
+          <button id="next-btn" class="text-white/70 hover:text-white transition-colors text-sm p-1">
+            <i class="fa-solid fa-forward-step"></i>
+          </button>
+        </div>
+
+        <!-- Shuffle Toggle -->
+        <button id="shuffle-btn" class="text-white/40 hover:text-white transition-colors text-xs p-1" title="Shuffle Playlist">
+          <i class="fa-solid fa-shuffle"></i>
+        </button>
+      </div>
     </div>
 
-    <script>
-        // Application Preferences State
-        const defaultPrefs = {
-            bgColor: '#0f172a',
-            accentColor: '#6366f1',
-            cardOpacity: 0.85,
-            cardBlur: 8,
-            bgImage: '',
-            bgDim: 0.4,
-            playlistId: 'PLJYIXcNxi-qw'
-        };
+    <!-- Settings Drawer Overlay -->
+    <div id="settings-panel" class="absolute inset-0 z-20 bg-slate-900/95 backdrop-blur-md p-4 flex flex-col justify-between transition-all duration-300 opacity-0 pointer-events-none translate-y-4">
+      <div>
+        <div class="flex items-center justify-between border-b border-white/10 pb-2 mb-3">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-white/80"><i class="fa-solid fa-gear mr-1.5"></i> Widget Settings</h2>
+          <button id="close-settings" class="text-white/60 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
+        </div>
 
-        let prefs = { ...defaultPrefs };
-        let currentPlaylistId = defaultPrefs.playlistId;
-        let player = null;
-        let isPlaying = false;
-        let isMuted = false;
-        let isShuffled = false;
-        let updateInterval = null;
-        let isDraggingScrubber = false;
-        let isApiReady = false;
+        <div class="space-y-3 text-xs overflow-y-auto max-h-52 pr-1">
+          <!-- Playlist URL/ID Input -->
+          <div>
+            <label class="block text-white/70 mb-1">YouTube Playlist ID or URL</label>
+            <div class="flex gap-1.5">
+              <input type="text" id="playlist-input" placeholder="PL... or YouTube URL" class="flex-1 bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-white placeholder-white/30 focus:outline-none focus:border-violet-500">
+              <button id="load-playlist-btn" class="bg-violet-600 hover:bg-violet-500 px-3 py-1.5 rounded-lg font-medium text-white transition-colors">Load</button>
+            </div>
+          </div>
 
-        // DOM Elements
-        const playerCard = document.getElementById('player-card');
-        const bgImageLayer = document.getElementById('bg-image-layer');
-        const bgOverlayLayer = document.getElementById('bg-overlay-layer');
-        
-        const playBtn = document.getElementById('play-btn');
-        const playIcon = document.getElementById('play-icon');
-        const prevBtn = document.getElementById('prev-btn');
-        const nextBtn = document.getElementById('next-btn');
-        const trackTitle = document.getElementById('track-title');
-        const trackThumb = document.getElementById('track-thumb');
-        const trackIcon = document.getElementById('track-icon');
-        const statusBadge = document.getElementById('status-badge');
-        const progressBar = document.getElementById('progress-bar');
-        const timeDisplay = document.getElementById('time-display');
-        const muteBtn = document.getElementById('mute-btn');
-        const volumeIcon = document.getElementById('volume-icon');
-        const volumeSlider = document.getElementById('volume-slider');
-        const shuffleBtn = document.getElementById('shuffle-btn');
+          <!-- Color Theme Settings -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-white/70 mb-1">Card Color</label>
+              <input type="color" id="card-color-picker" value="#0f172a" class="w-full h-8 rounded border-0 bg-transparent cursor-pointer">
+            </div>
+            <div>
+              <label class="block text-white/70 mb-1">Accent Color</label>
+              <input type="color" id="accent-color-picker" value="#8b5cf6" class="w-full h-8 rounded border-0 bg-transparent cursor-pointer">
+            </div>
+          </div>
 
-        const settingsToggle = document.getElementById('settings-toggle');
-        const settingsDrawer = document.getElementById('settings-drawer');
-        const helpToggle = document.getElementById('help-toggle');
-        const helpDrawer = document.getElementById('help-drawer');
-        const closeHelpBtn = document.getElementById('close-help-btn');
+          <!-- Glassmorphism Blur Slider -->
+          <div>
+            <div class="flex justify-between text-white/70 mb-1">
+              <span>Card Opacity</span>
+              <span id="opacity-val">85%</span>
+            </div>
+            <input type="range" id="card-opacity" min="10" max="100" value="85" class="w-full">
+          </div>
 
-        const bgColorPicker = document.getElementById('bg-color-picker');
-        const bgColorVal = document.getElementById('bg-color-val');
-        const accentColorPicker = document.getElementById('accent-color-picker');
-        const accentColorVal = document.getElementById('accent-color-val');
-        const cardOpacitySlider = document.getElementById('card-opacity-slider');
-        const cardBlurSlider = document.getElementById('card-blur-slider');
-        const bgUrlInput = document.getElementById('bg-url-input');
-        const bgFileInput = document.getElementById('bg-file-input');
-        const removeBgBtn = document.getElementById('remove-bg-btn');
-        const overlayDimSlider = document.getElementById('overlay-dim-slider');
-        const playlistInput = document.getElementById('playlist-input');
-        const savePlaylistBtn = document.getElementById('save-playlist-btn');
+          <!-- Background Image / GIF URL -->
+          <div>
+            <label class="block text-white/70 mb-1">Background Image/GIF URL</label>
+            <input type="text" id="bg-url-input" placeholder="https://... image/gif" class="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-white placeholder-white/30 focus:outline-none focus:border-violet-500">
+          </div>
+        </div>
+      </div>
 
-        // Hex Color Luminance Checker
-        function getLuminance(hex) {
-            let color = hex.replace('#', '');
-            if (color.length === 3) {
-                color = color.split('').map(c => c + c).join('');
-            }
-            const num = parseInt(color, 16);
-            const r = (num >> 16) & 255;
-            const g = (num >> 8) & 255;
-            const b = num & 255;
-            return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      <p class="text-[10px] text-white/40 text-center pt-2">Settings automatically save in browser</p>
+    </div>
+  </div>
+
+  <!-- Hidden YouTube Player Container -->
+  <div id="yt-player-frame"></div>
+
+  <!-- YouTube IFrame Player API -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+  
+  <script>
+    let player = null;
+    let isPlaying = false;
+    let isMuted = false;
+    let isShuffle = false;
+    let updateTimer = null;
+    let currentPlaylistId = 'PL4fGSI1pTjv1-0m-9Z-9vXN-U9j_o9z-A'; // Default lo-fi playlist ID
+
+    // Load saved settings from LocalStorage
+    function loadSavedSettings() {
+      const savedCardColor = localStorage.getItem('yt_card_color') || '#0f172a';
+      const savedAccentColor = localStorage.getItem('yt_accent_color') || '#8b5cf6';
+      const savedOpacity = localStorage.getItem('yt_card_opacity') || '85';
+      const savedBgUrl = localStorage.getItem('yt_bg_url') || '';
+      const savedPlaylist = localStorage.getItem('yt_playlist_id') || currentPlaylistId;
+
+      document.getElementById('card-color-picker').value = savedCardColor;
+      document.getElementById('accent-color-picker').value = savedAccentColor;
+      document.getElementById('card-opacity').value = savedOpacity;
+      document.getElementById('bg-url-input').value = savedBgUrl;
+      document.getElementById('playlist-input').value = savedPlaylist;
+
+      currentPlaylistId = savedPlaylist;
+      applyTheme(savedCardColor, savedAccentColor, savedOpacity, savedBgUrl);
+    }
+
+    function applyTheme(cardHex, accentHex, opacity, bgUrl) {
+      document.documentElement.style.setProperty('--accent-color', accentHex);
+      
+      // Convert Hex to RGBA for card background opacity
+      const r = parseInt(cardHex.slice(1, 3), 16);
+      const g = parseInt(cardHex.slice(3, 5), 16);
+      const b = parseInt(cardHex.slice(5, 7), 16);
+      const rgba = `rgba(${r}, ${g}, ${b}, ${opacity / 100})`;
+      document.documentElement.style.setProperty('--card-bg', rgba);
+
+      // Play button color update
+      const playBtn = document.getElementById('play-btn');
+      playBtn.style.backgroundColor = accentHex;
+      playBtn.style.boxShadow = `0 10px 15px -3px ${accentHex}50`;
+
+      // Background Image/GIF
+      const bgOverlay = document.getElementById('bg-overlay');
+      const bgDim = document.getElementById('bg-dim');
+      if (bgUrl && bgUrl.trim() !== '') {
+        bgOverlay.style.backgroundImage = `url('${bgUrl.trim()}')`;
+        bgOverlay.style.opacity = '1';
+        bgDim.style.opacity = '1';
+      } else {
+        bgOverlay.style.opacity = '0';
+        bgDim.style.opacity = '0';
+      }
+    }
+
+    // Initialize YouTube Player
+    function onYouTubeIframeAPIReady() {
+      player = new YT.Player('yt-player-frame', {
+        height: '200',
+        width: '200',
+        playerVars: {
+          listType: 'playlist',
+          list: currentPlaylistId,
+          autoplay: 0,
+          controls: 0,
+          disablekb: 1,
+          fs: 0
+        },
+        events: {
+          'onReady': onPlayerReady,
+          'onStateChange': onPlayerStateChange
         }
+      });
+    }
 
-        // Convert HEX to RGBA string
-        function hexToRgba(hex, alpha) {
-            let color = hex.replace('#', '');
-            if (color.length === 3) {
-                color = color.split('').map(c => c + c).join('');
-            }
-            const num = parseInt(color, 16);
-            const r = (num >> 16) & 255;
-            const g = (num >> 8) & 255;
-            const b = num & 255;
-            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    function onPlayerReady(event) {
+      document.getElementById('player-status').textContent = 'Ready';
+      updateTrackInfo();
+    }
+
+    function onPlayerStateChange(event) {
+      if (event.data === YT.PlayerState.PLAYING) {
+        isPlaying = true;
+        document.getElementById('play-icon').className = 'fa-solid fa-pause text-sm';
+        document.getElementById('player-status').textContent = 'Now Playing';
+        startTimer();
+      } else {
+        isPlaying = false;
+        document.getElementById('play-icon').className = 'fa-solid fa-play text-sm translate-x-0.5';
+        document.getElementById('player-status').textContent = event.data === YT.PlayerState.PAUSED ? 'Paused' : 'Ready';
+        stopTimer();
+      }
+      updateTrackInfo();
+    }
+
+    function updateTrackInfo() {
+      if (!player || typeof player.getVideoData !== 'function') return;
+      const data = player.getVideoData();
+      if (data && data.title) {
+        document.getElementById('track-title').textContent = data.title;
+        document.getElementById('track-author').textContent = data.author || 'YouTube Music';
+        const videoId = data.video_id;
+        if (videoId) {
+          document.getElementById('track-thumb').src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
         }
+      }
+    }
 
-        function loadPreferences() {
-            try {
-                const saved = localStorage.getItem('notion_yt_player_prefs_v2');
-                if (saved) {
-                    prefs = { ...defaultPrefs, ...JSON.parse(saved) };
-                }
-            } catch (e) {
-                console.warn('LocalStorage unavailable:', e);
-            }
-
-            currentPlaylistId = prefs.playlistId || defaultPrefs.playlistId;
-            applyPreferences();
+    function startTimer() {
+      stopTimer();
+      updateTimer = setInterval(() => {
+        if (!player || !isPlaying) return;
+        const current = player.getCurrentTime() || 0;
+        const total = player.getDuration() || 0;
+        document.getElementById('curr-time').textContent = formatTime(current);
+        document.getElementById('total-time').textContent = formatTime(total);
+        if (total > 0) {
+          document.getElementById('progress-bar').value = (current / total) * 100;
         }
+      }, 500);
+    }
 
-        function savePreferences() {
-            try {
-                localStorage.setItem('notion_yt_player_prefs_v2', JSON.stringify(prefs));
-            } catch (e) {
-                console.warn('LocalStorage save error:', e);
-            }
+    function stopTimer() {
+      if (updateTimer) clearInterval(updateTimer);
+    }
+
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+
+    // Extract Playlist ID from full URL or return ID as is
+    function extractPlaylistId(input) {
+      if (input.includes('list=')) {
+        const matches = input.match(/[&?]list=([^&]+)/);
+        return matches ? matches[1] : input;
+      }
+      return input.trim();
+    }
+
+    // Event Listeners
+    document.addEventListener('DOMContentLoaded', () => {
+      loadSavedSettings();
+
+      // Settings Panel Controls
+      const settingsPanel = document.getElementById('settings-panel');
+      document.getElementById('settings-toggle').addEventListener('click', () => {
+        settingsPanel.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
+      });
+      document.getElementById('close-settings').addEventListener('click', () => {
+        settingsPanel.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');
+      });
+
+      // Play / Pause Toggle
+      document.getElementById('play-btn').addEventListener('click', () => {
+        if (!player) return;
+        if (isPlaying) {
+          player.pauseVideo();
+        } else {
+          player.playVideo();
         }
+      });
 
-        // Apply Preferences to Player Styling
-        function applyPreferences() {
-            document.documentElement.style.setProperty('--accent-color', prefs.accentColor);
-            document.documentElement.style.setProperty('--bg-blur', `${prefs.cardBlur}px`);
-            
-            const cardBgRgba = hexToRgba(prefs.bgColor, prefs.cardOpacity);
-            document.documentElement.style.setProperty('--card-bg', cardBgRgba);
+      // Track Navigation
+      document.getElementById('next-btn').addEventListener('click', () => player && player.nextVideo());
+      document.getElementById('prev-btn').addEventListener('click', () => player && player.previousVideo());
 
-            bgColorPicker.value = prefs.bgColor;
-            bgColorVal.innerText = prefs.bgColor;
-            accentColorPicker.value = prefs.accentColor;
-            accentColorVal.innerText = prefs.accentColor;
-            cardOpacitySlider.value = prefs.cardOpacity;
-            cardBlurSlider.value = prefs.cardBlur;
-            overlayDimSlider.value = prefs.bgDim;
+      // Shuffle Toggle
+      document.getElementById('shuffle-btn').addEventListener('click', () => {
+        if (!player) return;
+        isShuffle = !isShuffle;
+        player.setShuffle(isShuffle);
+        document.getElementById('shuffle-btn').classList.toggle('text-violet-400', isShuffle);
+        document.getElementById('shuffle-btn').classList.toggle('text-white/40', !isShuffle);
+      });
 
-            if (prefs.bgImage) {
-                bgImageLayer.style.backgroundImage = `url('${prefs.bgImage}')`;
-                bgImageLayer.classList.remove('hidden');
-                bgOverlayLayer.classList.remove('hidden');
-                bgOverlayLayer.style.backgroundColor = `rgba(0,0,0,${prefs.bgDim})`;
-                bgUrlInput.value = prefs.bgImage.startsWith('data:') ? '' : prefs.bgImage;
-
-                document.documentElement.style.setProperty('--text-primary', '#ffffff');
-                document.documentElement.style.setProperty('--border-color', 'rgba(255, 255, 255, 0.2)');
-            } else {
-                bgImageLayer.classList.add('hidden');
-                bgOverlayLayer.classList.add('hidden');
-                bgUrlInput.value = '';
-
-                const isLight = getLuminance(prefs.bgColor) > 0.65;
-                if (isLight && prefs.cardOpacity > 0.5) {
-                    document.documentElement.style.setProperty('--text-primary', '#0f172a');
-                    document.documentElement.style.setProperty('--border-color', 'rgba(15, 23, 42, 0.15)');
-                } else {
-                    document.documentElement.style.setProperty('--text-primary', '#ffffff');
-                    document.documentElement.style.setProperty('--border-color', 'rgba(255, 255, 255, 0.15)');
-                }
-            }
-
-            playlistInput.value = currentPlaylistId;
+      // Volume Controls
+      document.getElementById('volume-slider').addEventListener('input', (e) => {
+        if (!player) return;
+        const val = e.target.value;
+        player.setVolume(val);
+        const icon = document.getElementById('volume-icon');
+        if (val == 0) {
+          icon.className = 'fa-solid fa-volume-xmark text-xs text-red-400';
+        } else if (val < 50) {
+          icon.className = 'fa-solid fa-volume-low text-xs';
+        } else {
+          icon.className = 'fa-solid fa-volume-high text-xs';
         }
+      });
 
-        // Load YouTube IFrame API Dynamically
-        const tag = document.createElement('script');
-        tag.src = "https://www.youtube.com/iframe_api";
-        const firstScriptTag = document.getElementsByTagName('script')[0];
-        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+      // Scrubber Progress Seek
+      document.getElementById('progress-bar').addEventListener('input', (e) => {
+        if (!player) return;
+        const total = player.getDuration() || 0;
+        const seekTo = (e.target.value / 100) * total;
+        player.seekTo(seekTo, true);
+      });
 
-        window.onYouTubeIframeAPIReady = function() {
-            isApiReady = true;
-            initializePlayer();
-        };
+      // Theme Customization Listeners
+      const updateThemeFromInputs = () => {
+        const cardColor = document.getElementById('card-color-picker').value;
+        const accentColor = document.getElementById('accent-color-picker').value;
+        const opacity = document.getElementById('card-opacity').value;
+        const bgUrl = document.getElementById('bg-url-input').value;
 
-        function initializePlayer() {
-            if (!isApiReady) return;
+        document.getElementById('opacity-val').textContent = `${opacity}%`;
+        applyTheme(cardColor, accentColor, opacity, bgUrl);
 
-            let safeOrigin = 'https://www.youtube.com';
-            try {
-                if (window.location.origin && window.location.origin !== 'null') {
-                    safeOrigin = window.location.origin;
-                }
-            } catch (e) {}
+        localStorage.setItem('yt_card_color', cardColor);
+        localStorage.setItem('yt_accent_color', accentColor);
+        localStorage.setItem('yt_card_opacity', opacity);
+        localStorage.setItem('yt_bg_url', bgUrl);
+      };
 
-            if (player) {
-                try { player.destroy(); } catch (e) {}
-            }
+      document.getElementById('card-color-picker').addEventListener('input', updateThemeFromInputs);
+      document.getElementById('accent-color-picker').addEventListener('input', updateThemeFromInputs);
+      document.getElementById('card-opacity').addEventListener('input', updateThemeFromInputs);
+      document.getElementById('bg-url-input').addEventListener('input', updateThemeFromInputs);
 
-            statusBadge.innerText = "Loading...";
-            trackTitle.innerText = "Loading YouTube Playlist...";
-
-            player = new YT.Player('youtube-player', {
-                height: '0',
-                width: '0',
-                host: 'https://www.youtube-nocookie.com',
-                playerVars: {
-                    'listType': 'playlist',
-                    'list': currentPlaylistId,
-                    'autoplay': 0,
-                    'controls': 0,
-                    'disablekb': 1,
-                    'fs': 0,
-                    'modestbranding': 1,
-                    'rel': 0,
-                    'origin': safeOrigin
-                },
-                events: {
-                    'onReady': onPlayerReady,
-                    'onStateChange': onPlayerStateChange,
-                    'onError': onPlayerError
-                }
-            });
+      // Load Playlist Button
+      document.getElementById('load-playlist-btn').addEventListener('click', () => {
+        const rawInput = document.getElementById('playlist-input').value;
+        const cleanPlaylistId = extractPlaylistId(rawInput);
+        if (cleanPlaylistId && player) {
+          currentPlaylistId = cleanPlaylistId;
+          localStorage.setItem('yt_playlist_id', currentPlaylistId);
+          player.loadPlaylist({ listType: 'playlist', list: currentPlaylistId });
+          settingsPanel.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');
         }
-
-        function onPlayerReady() {
-            statusBadge.innerText = "Ready";
-            updateTrackInfo();
-            startProgressLoop();
-        }
-
-        function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.PLAYING) {
-                isPlaying = true;
-                playIcon.className = "fa-solid fa-pause text-xs";
-                statusBadge.innerText = "Playing";
-                updateTrackInfo();
-            } else if (event.data === YT.PlayerState.PAUSED) {
-                isPlaying = false;
-                playIcon.className = "fa-solid fa-play text-xs ml-0.5";
-                statusBadge.innerText = "Paused";
-            } else if (event.data === YT.PlayerState.BUFFERING) {
-                statusBadge.innerText = "Buffering";
-            } else if (event.data === YT.PlayerState.ENDED) {
-                isPlaying = false;
-                playIcon.className = "fa-solid fa-play text-xs ml-0.5";
-                statusBadge.innerText = "Ended";
-            }
-        }
-
-        function onPlayerError(e) {
-            console.warn('YouTube Player Error code:', e.data);
-            statusBadge.innerText = "Error";
-            trackTitle.innerText = "Track or playlist unavailable";
-        }
-
-        function updateTrackInfo() {
-            if (!player || typeof player.getVideoData !== 'function') return;
-
-            const videoData = player.getVideoData();
-            if (videoData && videoData.title) {
-                trackTitle.innerText = videoData.title;
-                
-                if (videoData.video_id) {
-                    trackThumb.src = `https://img.youtube.com/vi/${videoData.video_id}/mqdefault.jpg`;
-                    trackThumb.classList.remove('hidden');
-                    trackIcon.classList.add('hidden');
-                }
-
-                const containerWidth = document.querySelector('.marquee-container').clientWidth;
-                if (trackTitle.scrollWidth > containerWidth) {
-                    trackTitle.parentElement.classList.add('scroll-text');
-                } else {
-                    trackTitle.parentElement.classList.remove('scroll-text');
-                }
-            }
-        }
-
-        function formatTime(seconds) {
-            if (isNaN(seconds) || seconds < 0) return "0:00";
-            const mins = Math.floor(seconds / 60);
-            const secs = Math.floor(seconds % 60);
-            return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-        }
-
-        function startProgressLoop() {
-            if (updateInterval) clearInterval(updateInterval);
-            updateInterval = setInterval(() => {
-                if (player && typeof player.getCurrentTime === 'function' && !isDraggingScrubber) {
-                    const currentTime = player.getCurrentTime() || 0;
-                    const duration = player.getDuration() || 0;
-
-                    if (duration > 0) {
-                        const progress = (currentTime / duration) * 100;
-                        progressBar.value = progress;
-                        timeDisplay.innerText = `${formatTime(currentTime)} / ${formatTime(duration)}`;
-                    } else {
-                        timeDisplay.innerText = "0:00 / 0:00";
-                    }
-                }
-            }, 500);
-        }
-
-        playBtn.addEventListener('click', () => {
-            if (!player) return;
-            if (isPlaying) {
-                player.pauseVideo();
-            } else {
-                player.playVideo();
-            }
-        });
-
-        nextBtn.addEventListener('click', () => {
-            if (player && typeof player.nextVideo === 'function') {
-                player.nextVideo();
-            }
-        });
-
-        prevBtn.addEventListener('click', () => {
-            if (player && typeof player.previousVideo === 'function') {
-                player.previousVideo();
-            }
-        });
-
-        progressBar.addEventListener('mousedown', () => { isDraggingScrubber = true; });
-        progressBar.addEventListener('mouseup', () => { isDraggingScrubber = false; });
-        progressBar.addEventListener('change', () => {
-            if (player && typeof player.getDuration === 'function') {
-                const duration = player.getDuration();
-                const seekToTime = (progressBar.value / 100) * duration;
-                player.seekTo(seekToTime, true);
-            }
-            isDraggingScrubber = false;
-        });
-
-        volumeSlider.addEventListener('input', (e) => {
-            const vol = e.target.value;
-            if (player && typeof player.setVolume === 'function') {
-                player.setVolume(vol);
-                volumeIcon.className = vol == 0 ? "fa-solid fa-volume-xmark text-xs" : "fa-solid fa-volume-high text-xs";
-            }
-        });
-
-        muteBtn.addEventListener('click', () => {
-            if (!player) return;
-            if (isMuted) {
-                player.unMute();
-                isMuted = false;
-                volumeIcon.className = "fa-solid fa-volume-high text-xs";
-            } else {
-                player.mute();
-                isMuted = true;
-                volumeIcon.className = "fa-solid fa-volume-xmark text-xs";
-            }
-        });
-
-        shuffleBtn.addEventListener('click', () => {
-            if (!player) return;
-            isShuffled = !isShuffled;
-            player.setShuffle(isShuffled);
-            shuffleBtn.classList.toggle('accent-text', isShuffled);
-            shuffleBtn.classList.toggle('opacity-50', !isShuffled);
-            shuffleBtn.classList.toggle('opacity-100', isShuffled);
-        });
-
-        // Preference Settings Listeners
-        bgColorPicker.addEventListener('input', (e) => {
-            prefs.bgColor = e.target.value;
-            bgColorVal.innerText = prefs.bgColor;
-            applyPreferences();
-            savePreferences();
-        });
-
-        accentColorPicker.addEventListener('input', (e) => {
-            prefs.accentColor = e.target.value;
-            accentColorVal.innerText = prefs.accentColor;
-            applyPreferences();
-            savePreferences();
-        });
-
-        cardOpacitySlider.addEventListener('input', (e) => {
-            prefs.cardOpacity = e.target.value;
-            applyPreferences();
-            savePreferences();
-        });
-
-        cardBlurSlider.addEventListener('input', (e) => {
-            prefs.cardBlur = e.target.value;
-            applyPreferences();
-            savePreferences();
-        });
-
-        bgUrlInput.addEventListener('change', (e) => {
-            prefs.bgImage = e.target.value.trim();
-            applyPreferences();
-            savePreferences();
-        });
-
-        bgFileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function (evt) {
-                    prefs.bgImage = evt.target.result;
-                    applyPreferences();
-                    savePreferences();
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        removeBgBtn.addEventListener('click', () => {
-            prefs.bgImage = '';
-            applyPreferences();
-            savePreferences();
-        });
-
-        overlayDimSlider.addEventListener('input', (e) => {
-            prefs.bgDim = e.target.value;
-            applyPreferences();
-            savePreferences();
-        });
-
-        settingsToggle.addEventListener('click', () => {
-            settingsDrawer.classList.toggle('hidden');
-            helpDrawer.classList.add('hidden');
-        });
-
-        helpToggle.addEventListener('click', () => {
-            helpDrawer.classList.toggle('hidden');
-            settingsDrawer.classList.add('hidden');
-        });
-
-        closeHelpBtn.addEventListener('click', () => {
-            helpDrawer.classList.add('hidden');
-        });
-
-        function extractPlaylistId(input) {
-            if (!input) return null;
-            if (input.includes('list=')) {
-                try {
-                    const urlParams = new URLSearchParams(input.split('?')[1]);
-                    return urlParams.get('list');
-                } catch (e) {}
-            }
-            return input.trim();
-        }
-
-        savePlaylistBtn.addEventListener('click', () => {
-            const val = playlistInput.value;
-            const extractedId = extractPlaylistId(val);
-            if (extractedId) {
-                currentPlaylistId = extractedId;
-                prefs.playlistId = extractedId;
-                savePreferences();
-                initializePlayer();
-            }
-        });
-
-        // Load Preferences on Initialization
-        window.addEventListener('DOMContentLoaded', () => {
-            loadPreferences();
-        });
-    </script>
+      });
+    });
+  </script>
 </body>
 </html>
