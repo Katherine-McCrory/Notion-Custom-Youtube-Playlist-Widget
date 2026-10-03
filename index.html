@@ -61,7 +61,7 @@
       transform: scale(1.2);
     }
 
-    /* Custom Scrollbar for Settings */
+    /* Custom Scrollbar */
     .custom-scroll::-webkit-scrollbar {
       width: 4px;
     }
@@ -73,9 +73,6 @@
       background: rgba(255, 255, 255, 0.3);
       border-radius: 4px;
     }
-    .custom-scroll::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.5);
-    }
 
     /* Card styling */
     .widget-card {
@@ -85,7 +82,6 @@
       border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
-    /* Hidden YouTube player container */
     #yt-player-frame {
       position: absolute;
       width: 1px;
@@ -115,7 +111,7 @@
           <img id="track-thumb" src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=150&auto=format&fit=crop&q=80" alt="Thumbnail" class="w-full h-full object-cover">
         </div>
 
-        <!-- Track Info & Inline Status Badges -->
+        <!-- Track Info -->
         <div class="flex-1 min-w-0">
           <div class="marquee-container w-full">
             <h1 id="track-title" class="marquee-content font-bold text-xs text-white">Select or Load a Playlist</h1>
@@ -127,9 +123,9 @@
           </div>
         </div>
 
-        <!-- Quick Restart & Settings Buttons -->
+        <!-- Restart & Settings Buttons -->
         <div class="flex items-center gap-1">
-          <button id="restart-btn" class="text-white/60 hover:text-white p-1 transition-colors" title="Restart Playlist from Beginning">
+          <button id="restart-btn" class="text-white/60 hover:text-white p-1 transition-colors" title="Restart Playlist">
             <i class="fa-solid fa-rotate-left text-xs"></i>
           </button>
           <button id="settings-toggle" class="text-white/60 hover:text-white p-1 transition-colors" title="Settings">
@@ -143,7 +139,7 @@
         <input type="range" id="progress-bar" min="0" max="100" value="0" class="w-full cursor-pointer">
       </div>
 
-      <!-- Bottom Controls Row -->
+      <!-- Controls Row -->
       <div class="flex items-center justify-between pt-0.5">
         <!-- Volume Control -->
         <div class="flex items-center gap-1.5 w-20">
@@ -166,7 +162,7 @@
           </button>
         </div>
 
-        <!-- Shuffle & Repeat Controls -->
+        <!-- Shuffle & Repeat -->
         <div class="flex items-center gap-2">
           <button id="shuffle-btn" class="text-white/40 hover:text-white transition-colors text-xs p-1" title="Shuffle Playlist">
             <i class="fa-solid fa-shuffle"></i>
@@ -178,15 +174,13 @@
       </div>
     </div>
 
-    <!-- Fixed Settings Panel Overlay -->
+    <!-- Settings Overlay -->
     <div id="settings-panel" class="absolute inset-0 z-20 bg-slate-900/95 backdrop-blur-md p-3 flex flex-col h-full transition-all duration-300 opacity-0 pointer-events-none translate-y-3">
-      <!-- Fixed Header -->
       <div class="flex items-center justify-between border-b border-white/10 pb-1.5 mb-2 flex-shrink-0">
         <h2 class="text-xs font-bold uppercase tracking-wider text-white/80"><i class="fa-solid fa-gear mr-1"></i> Widget Settings</h2>
         <button id="close-settings" class="text-white/60 hover:text-white text-xs"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
-      <!-- Scrollable Form Container -->
       <div class="custom-scroll flex-1 overflow-y-auto space-y-2.5 text-xs pr-1.5 pb-4">
         <!-- Playlist URL Input -->
         <div>
@@ -195,9 +189,10 @@
             <input type="text" id="playlist-input" placeholder="https://www.youtube.com/playlist?list=..." class="flex-1 bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-white text-[11px] placeholder-white/30 focus:outline-none focus:border-violet-500">
             <button id="load-playlist-btn" class="bg-violet-600 hover:bg-violet-500 px-2.5 py-1 rounded-lg font-medium text-white text-[11px] transition-colors flex-shrink-0">Load</button>
           </div>
+          <p id="playlist-msg" class="text-[10px] mt-1 hidden"></p>
         </div>
 
-        <!-- Color Customization -->
+        <!-- Colors -->
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="block text-white/70 mb-1 text-[11px]">Card Color</label>
@@ -209,7 +204,7 @@
           </div>
         </div>
 
-        <!-- Card Opacity -->
+        <!-- Opacity -->
         <div>
           <div class="flex justify-between text-white/70 mb-1 text-[11px]">
             <span>Card Opacity</span>
@@ -218,7 +213,7 @@
           <input type="range" id="card-opacity" min="10" max="100" value="90" class="w-full">
         </div>
 
-        <!-- Background Image/GIF -->
+        <!-- Background Image -->
         <div>
           <label class="block text-white/70 mb-1 text-[11px]">Background Image/GIF URL</label>
           <input type="text" id="bg-url-input" placeholder="https://... image/gif" class="w-full bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-white text-[11px] placeholder-white/30 focus:outline-none focus:border-violet-500">
@@ -227,7 +222,6 @@
     </div>
   </div>
 
-  <!-- Hidden YouTube Player Iframe -->
   <div id="yt-player-frame"></div>
 
   <script src="https://www.youtube.com/iframe_api"></script>
@@ -286,13 +280,17 @@
       }
     }
 
-    function onYouTubeIframeAPIReady() {
+    function createPlayer(playlistId) {
+      if (player && typeof player.destroy === 'function') {
+        player.destroy();
+      }
+
       player = new YT.Player('yt-player-frame', {
         height: '200',
         width: '200',
         playerVars: {
           listType: 'playlist',
-          list: currentPlaylistId,
+          list: playlistId,
           autoplay: 0,
           controls: 0,
           disablekb: 1,
@@ -303,6 +301,10 @@
           'onStateChange': onPlayerStateChange
         }
       });
+    }
+
+    function onYouTubeIframeAPIReady() {
+      createPlayer(currentPlaylistId);
     }
 
     function onPlayerReady(event) {
@@ -361,11 +363,21 @@
       return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     }
 
+    // Flexible extraction for standard URLs, YouTube Music URLs, and share links
     function extractPlaylistId(input) {
       if (!input) return '';
-      const matches = input.match(/[&?]list=([^&]+)/);
-      if (matches) return matches[1];
-      return input.trim();
+      const str = input.trim();
+      
+      // Match list= parameter (handles standard & YT Music links)
+      const listMatch = str.match(/[?&]list=([^&]+)/);
+      if (listMatch && listMatch[1]) return listMatch[1];
+
+      // If user pasted raw playlist ID (PL... or RD...)
+      if (/^[A-Za-z0-9_-]{12,}$/.test(str)) {
+        return str;
+      }
+
+      return '';
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -391,14 +403,12 @@
       document.getElementById('next-btn').addEventListener('click', () => player && player.nextVideo());
       document.getElementById('prev-btn').addEventListener('click', () => player && player.previousVideo());
 
-      // Restart playlist button
       document.getElementById('restart-btn').addEventListener('click', () => {
         if (player && typeof player.playVideoAt === 'function') {
           player.playVideoAt(0);
         }
       });
 
-      // Shuffle Toggle
       document.getElementById('shuffle-btn').addEventListener('click', () => {
         if (!player) return;
         isShuffle = !isShuffle;
@@ -407,7 +417,6 @@
         document.getElementById('shuffle-btn').classList.toggle('text-white/40', !isShuffle);
       });
 
-      // Loop / Repeat Toggle
       document.getElementById('loop-btn').addEventListener('click', () => {
         if (!player) return;
         isLoop = !isLoop;
@@ -457,15 +466,43 @@
       document.getElementById('card-opacity').addEventListener('input', updateThemeFromInputs);
       document.getElementById('bg-url-input').addEventListener('input', updateThemeFromInputs);
 
+      // Load Playlist Action
       document.getElementById('load-playlist-btn').addEventListener('click', () => {
         const rawUrl = document.getElementById('playlist-input').value;
         const cleanPlaylistId = extractPlaylistId(rawUrl);
-        if (cleanPlaylistId && player) {
-          currentPlaylistId = cleanPlaylistId;
-          localStorage.setItem('yt_playlist_url', rawUrl);
-          player.loadPlaylist({ listType: 'playlist', list: currentPlaylistId });
-          settingsPanel.classList.add('opacity-0', 'pointer-events-none', 'translate-y-3');
+        const msg = document.getElementById('playlist-msg');
+
+        if (!cleanPlaylistId) {
+          msg.textContent = '❌ Invalid URL. Please copy a playlist link.';
+          msg.className = 'text-[10px] mt-1 text-red-400 block';
+          return;
         }
+
+        msg.textContent = '⏳ Loading playlist...';
+        msg.className = 'text-[10px] mt-1 text-emerald-400 block';
+
+        currentPlaylistId = cleanPlaylistId;
+        localStorage.setItem('yt_playlist_url', rawUrl);
+
+        try {
+          if (player && typeof player.loadPlaylist === 'function') {
+            player.loadPlaylist({
+              listType: 'playlist',
+              list: currentPlaylistId,
+              index: 0,
+              startSeconds: 0
+            });
+          } else {
+            createPlayer(currentPlaylistId);
+          }
+        } catch (err) {
+          createPlayer(currentPlaylistId);
+        }
+
+        setTimeout(() => {
+          msg.className = 'text-[10px] mt-1 hidden';
+          settingsPanel.classList.add('opacity-0', 'pointer-events-none', 'translate-y-3');
+        }, 1200);
       });
     });
   </script>
