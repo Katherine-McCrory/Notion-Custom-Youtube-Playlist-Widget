@@ -77,6 +77,7 @@
       border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
+    /* Glow pulse when loading a playlist */
     @keyframes pulseGlow {
       0% { box-shadow: 0 0 0px rgba(139, 92, 246, 0); }
       50% { box-shadow: 0 0 15px rgba(139, 92, 246, 0.8); }
@@ -115,10 +116,11 @@
 
         <div class="flex-1 min-w-0">
           <div class="marquee-container w-full">
-            <h1 id="track-title" class="marquee-content font-bold text-xs text-white">No Playlist Loaded</h1>
+            <h1 id="track-title" class="marquee-content font-bold text-xs text-white">Loading Playlist...</h1>
           </div>
           
           <div class="flex items-center gap-2 mt-0.5">
+            <span id="player-status" class="bg-white/10 px-1.5 py-0.5 rounded text-[10px] text-white/70 font-medium">Ready</span>
             <span class="text-[10px] text-white/50 font-mono"><span id="curr-time">0:00</span> / <span id="total-time">0:00</span></span>
           </div>
         </div>
@@ -138,37 +140,28 @@
         <input type="range" id="progress-bar" min="0" max="100" value="0" class="w-full cursor-pointer">
       </div>
 
-      <!-- Controls Row (Symmetrically Balanced) -->
+      <!-- Controls Row -->
       <div class="flex items-center justify-between pt-0.5">
-        
-        <!-- Left Section (Balanced Width: w-24) -->
-        <div class="flex items-center gap-1.5 w-24">
-          <button id="mute-btn" class="text-white/70 hover:text-white transition-colors flex-shrink-0">
+        <div class="flex items-center gap-1.5 w-20">
+          <button id="mute-btn" class="text-white/70 hover:text-white transition-colors">
             <i id="volume-icon" class="fa-solid fa-volume-high text-[11px]"></i>
           </button>
           <input type="range" id="volume-slider" min="0" max="100" value="80" class="w-full">
         </div>
 
-        <!-- Middle Section (Centered) -->
-        <div class="flex items-center justify-center gap-3">
+        <div class="flex items-center gap-3">
           <button id="prev-btn" class="text-white/70 hover:text-white transition-colors text-xs">
             <i class="fa-solid fa-backward-step"></i>
           </button>
-          
-          <!-- Play/Pause Button -->
-          <button id="play-btn" class="w-8 h-8 rounded-full bg-violet-600 text-white flex items-center justify-center hover:scale-105 transition-all shadow-md flex-shrink-0">
-            <svg id="play-icon" class="w-4 h-4 fill-current" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z"/>
-            </svg>
+          <button id="play-btn" class="w-8 h-8 rounded-full bg-violet-600 text-white flex items-center justify-center hover:scale-105 transition-all shadow-md">
+            <i id="play-icon" class="fa-solid fa-play text-xs translate-x-0.5"></i>
           </button>
-
           <button id="next-btn" class="text-white/70 hover:text-white transition-colors text-xs">
             <i class="fa-solid fa-forward-step"></i>
           </button>
         </div>
 
-        <!-- Right Section (Balanced Width: w-24) -->
-        <div class="flex items-center justify-end gap-2 w-24">
+        <div class="flex items-center gap-2">
           <button id="shuffle-btn" class="text-white/40 hover:text-white transition-colors text-xs p-1" title="Shuffle Playlist">
             <i class="fa-solid fa-shuffle"></i>
           </button>
@@ -266,54 +259,23 @@
     let isLoop = false;
     let updateTimer = null;
 
-    // SVG path data for Play and Pause
-    const PLAY_SVG_PATH = 'M8 5v14l11-7z';
-    const PAUSE_SVG_PATH = 'M6 19h4V5H6v14zm8-14v14h4V5h-4z';
-
-    // Universal copy function with iframe fallback
-    async function copyToClipboard(textToCopy) {
-      if (navigator.clipboard && window.isSecureContext) {
-        try {
-          await navigator.clipboard.writeText(textToCopy);
-          return true;
-        } catch (err) {
-          console.warn('Clipboard API blocked, running iframe fallback...', err);
-        }
-      }
-
-      try {
-        const textArea = document.createElement('textarea');
-        textArea.value = textToCopy;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-999999px';
-        textArea.style.top = '-999999px';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        
-        const successful = document.execCommand('copy');
-        document.body.removeChild(textArea);
-        return successful;
-      } catch (err) {
-        console.error('Failed to copy via fallback:', err);
-        return false;
-      }
-    }
-
     // Parse URL Parameters
     const urlParams = new URLSearchParams(window.location.search);
     const directPlaylistParam = urlParams.get('playlist') || urlParams.get('list');
     const instanceId = urlParams.get('id') || 'default';
 
+    // Base URL Detection
     const baseUrl = window.location.origin + window.location.pathname;
     let sessionUniqueId = instanceId !== 'default' ? instanceId : generateRandomUniqueId();
 
-    let currentPlaylistId = directPlaylistParam || '';
+    // Default Fallback Playlist (if none supplied in URL or storage)
+    let currentPlaylistId = directPlaylistParam || 'PL4fGSI1pTjv1-0m-9Z-9vXN-U9j_o9z-A';
 
     function generateRandomUniqueId() {
       return 'pg_' + Math.random().toString(36).substring(2, 9);
     }
 
+    // Dynamic Storage Keys tied to specific Instance ID
     const KEY_CARD_COLOR = `yt_card_color_${instanceId}`;
     const KEY_ACCENT_COLOR = `yt_accent_color_${instanceId}`;
     const KEY_OPACITY = `yt_card_opacity_${instanceId}`;
@@ -325,11 +287,7 @@
       const cleanBase = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
       const cleanId = extractPlaylistId(rawPlaylist) || currentPlaylistId;
 
-      if (cleanId) {
-        generatedCode.textContent = `${cleanBase}?playlist=${cleanId}&id=${sessionUniqueId}`;
-      } else {
-        generatedCode.textContent = `${cleanBase}?id=${sessionUniqueId}`;
-      }
+      generatedCode.textContent = `${cleanBase}?playlist=${cleanId}&id=${sessionUniqueId}`;
     }
 
     function safeStorageGet(key) {
@@ -390,24 +348,7 @@
       }
     }
 
-    function setPlayIconState(playing) {
-      isPlaying = playing;
-      const playIcon = document.getElementById('play-icon');
-      if (!playIcon) return;
-
-      const pathElement = playIcon.querySelector('path');
-      if (!pathElement) return;
-
-      if (playing) {
-        pathElement.setAttribute('d', PAUSE_SVG_PATH);
-      } else {
-        pathElement.setAttribute('d', PLAY_SVG_PATH);
-      }
-    }
-
     function createPlayer(playlistId) {
-      if (!playlistId) return;
-
       if (player && typeof player.destroy === 'function') {
         player.destroy();
       }
@@ -431,27 +372,44 @@
     }
 
     function onYouTubeIframeAPIReady() {
-      if (currentPlaylistId) {
-        createPlayer(currentPlaylistId);
-      }
+      createPlayer(currentPlaylistId);
     }
 
     function onPlayerReady(event) {
+      document.getElementById('player-status').textContent = 'Ready';
       updateTrackInfo();
-      setPlayIconState(false);
+    }
+
+    function updatePlayButtonUI(playing) {
+      isPlaying = playing;
+      const playIcon = document.getElementById('play-icon');
+      if (playing) {
+        playIcon.className = 'fa-solid fa-pause text-xs';
+      } else {
+        playIcon.className = 'fa-solid fa-play text-xs translate-x-0.5';
+      }
     }
 
     function onPlayerStateChange(event) {
+      const statusBadge = document.getElementById('player-status');
+
       if (event.data === YT.PlayerState.PLAYING) {
-        setPlayIconState(true);
+        updatePlayButtonUI(true);
+        statusBadge.textContent = 'Playing';
         startTimer();
-      } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
-        setPlayIconState(false);
+      } else if (event.data === YT.PlayerState.PAUSED) {
+        updatePlayButtonUI(false);
+        statusBadge.textContent = 'Paused';
         stopTimer();
       } else if (event.data === YT.PlayerState.BUFFERING) {
-        // Keep active state while buffering
+        statusBadge.textContent = 'Buffering';
+      } else if (event.data === YT.PlayerState.ENDED) {
+        updatePlayButtonUI(false);
+        statusBadge.textContent = 'Ended';
+        stopTimer();
       } else {
-        setPlayIconState(false);
+        updatePlayButtonUI(false);
+        statusBadge.textContent = 'Ready';
         stopTimer();
       }
       updateTrackInfo();
@@ -525,12 +483,10 @@
         updateGeneratedEmbedUrl(rawUrl);
       });
 
-      document.getElementById('copy-notion-embed-btn').addEventListener('click', async () => {
-        const generatedCode = document.getElementById('generated-notion-url').textContent.trim();
+      document.getElementById('copy-notion-embed-btn').addEventListener('click', () => {
+        const generatedCode = document.getElementById('generated-notion-url').textContent;
         const btn = document.getElementById('copy-notion-embed-btn');
-        
-        const isCopied = await copyToClipboard(generatedCode);
-        if (isCopied) {
+        navigator.clipboard.writeText(generatedCode.trim()).then(() => {
           const originalHTML = btn.innerHTML;
           btn.innerHTML = `<i class="fa-solid fa-check"></i> Copied to Clipboard!`;
           btn.classList.replace('bg-violet-600', 'bg-emerald-600');
@@ -538,19 +494,12 @@
             btn.innerHTML = originalHTML;
             btn.classList.replace('bg-emerald-600', 'bg-violet-600');
           }, 2500);
-        }
+        });
       });
 
       document.getElementById('play-btn').addEventListener('click', () => {
         if (!player) return;
-
-        if (isPlaying) {
-          player.pauseVideo();
-          setPlayIconState(false);
-        } else {
-          player.playVideo();
-          setPlayIconState(true);
-        }
+        if (isPlaying) { player.pauseVideo(); } else { player.playVideo(); }
       });
 
       document.getElementById('next-btn').addEventListener('click', () => player && player.nextVideo());
@@ -619,7 +568,8 @@
       document.getElementById('card-opacity').addEventListener('input', updateThemeFromInputs);
       document.getElementById('bg-url-input').addEventListener('input', updateThemeFromInputs);
 
-      document.getElementById('load-playlist-btn').addEventListener('click', async () => {
+      // Load Playlist Button Action
+      document.getElementById('load-playlist-btn').addEventListener('click', () => {
         const rawUrl = document.getElementById('playlist-input').value;
         const cleanPlaylistId = extractPlaylistId(rawUrl);
         const msg = document.getElementById('playlist-msg');
@@ -635,11 +585,12 @@
         safeStorageSet(KEY_PLAYLIST_URL, rawUrl);
         updateGeneratedEmbedUrl(rawUrl);
 
+        // Highlight the embed box and auto-copy
         const embedBox = document.getElementById('embed-box');
         embedBox.classList.add('highlight-embed-box');
         
-        const generatedCode = document.getElementById('generated-notion-url').textContent.trim();
-        await copyToClipboard(generatedCode);
+        const generatedCode = document.getElementById('generated-notion-url').textContent;
+        navigator.clipboard.writeText(generatedCode.trim());
 
         msg.textContent = '✅ Playlist preview active & Link copied! Paste link into Notion to save permanently.';
         msg.className = 'text-[10px] mt-1 text-emerald-400 font-semibold block';
