@@ -183,33 +183,16 @@
     <!-- Info / Multi-Page Guide Modal Overlay -->
     <div id="info-panel" class="absolute inset-0 z-30 bg-slate-900/95 backdrop-blur-md p-3 flex flex-col h-full transition-all duration-300 opacity-0 pointer-events-none translate-y-3">
       <div class="flex items-center justify-between border-b border-white/10 pb-1.5 mb-2 flex-shrink-0">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-violet-400"><i class="fa-solid fa-circle-info mr-1"></i> Multi-Page Instructions</h2>
+        <h2 class="text-xs font-bold uppercase tracking-wider text-violet-400"><i class="fa-solid fa-circle-info mr-1"></i> Unique Embed Guidance</h2>
         <button id="close-info" class="text-white/60 hover:text-white text-xs"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <div class="custom-scroll flex-1 overflow-y-auto space-y-2 text-[11px] text-white/80 pr-1 pb-2">
-        <p>To keep distinct playlists or settings per Notion page:</p>
+        <p>Every link generated in settings includes a unique ID so different users or pages will never overwrite each other.</p>
         
-        <!-- Option 1: Direct Playlist -->
         <div class="bg-black/40 p-2 rounded border border-white/10 space-y-1">
-          <div class="flex justify-between items-center">
-            <strong class="text-white font-medium block">Option 1: Direct Playlist Link</strong>
-            <button class="copy-btn text-[10px] text-violet-400 hover:text-violet-300 transition-colors" data-target="code-option-1">
-              <i class="fa-regular fa-copy mr-0.5"></i> Copy
-            </button>
-          </div>
-          <code id="code-option-1" class="text-[10px] text-violet-300 block break-all font-mono bg-black/50 p-1.5 rounded select-all">https://custom-yt-playlist-widget.vercel.app/?playlist=PLAYLIST_ID</code>
-        </div>
-
-        <!-- Option 2: Unique Page IDs -->
-        <div class="bg-black/40 p-2 rounded border border-white/10 space-y-1">
-          <div class="flex justify-between items-center">
-            <strong class="text-white font-medium block">Option 2: Separate Page IDs</strong>
-            <button class="copy-btn text-[10px] text-violet-400 hover:text-violet-300 transition-colors" data-target="code-option-2">
-              <i class="fa-regular fa-copy mr-0.5"></i> Copy
-            </button>
-          </div>
-          <code id="code-option-2" class="text-[10px] text-violet-300 block break-all font-mono bg-black/50 p-1.5 rounded select-all">https://custom-yt-playlist-widget.vercel.app/?id=characterA</code>
+          <strong class="text-white font-medium block">Unique Link Example:</strong>
+          <code id="code-option-1" class="text-[10px] text-violet-300 block break-all font-mono bg-black/50 p-1.5 rounded select-all">https://custom-yt-playlist-widget.vercel.app/?playlist=ID&id=pg_x9f2a7b1</code>
         </div>
       </div>
     </div>
@@ -222,14 +205,30 @@
       </div>
 
       <div class="custom-scroll flex-1 overflow-y-auto space-y-2.5 text-xs pr-1.5 pb-4">
-        <!-- Playlist URL Input -->
-        <div>
-          <label class="block text-white/70 mb-1 text-[11px]">YouTube Playlist URL</label>
+        <!-- Playlist URL Input & Auto-Generated Embed Link -->
+        <div class="space-y-1.5">
+          <label class="block text-white/70 text-[11px]">YouTube Playlist URL</label>
           <div class="flex gap-1.5">
             <input type="text" id="playlist-input" placeholder="https://www.youtube.com/playlist?list=..." class="flex-1 bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-white text-[11px] placeholder-white/30 focus:outline-none focus:border-violet-500">
             <button id="load-playlist-btn" class="bg-violet-600 hover:bg-violet-500 px-2.5 py-1 rounded-lg font-medium text-white text-[11px] transition-colors flex-shrink-0">Load</button>
           </div>
-          <p id="playlist-msg" class="text-[10px] mt-1 hidden"></p>
+          <p id="playlist-msg" class="text-[10px] hidden"></p>
+
+          <!-- Auto-Generated Embed URL Box with Unique ID -->
+          <div class="bg-black/50 p-2 rounded-lg border border-white/10 space-y-1 mt-1">
+            <div class="flex justify-between items-center">
+              <span class="text-[10px] text-violet-300 font-semibold">Unique Notion Embed URL</span>
+              <div class="flex items-center gap-2">
+                <button id="regen-id-btn" class="text-[10px] text-white/60 hover:text-white transition-colors" title="Generate New Unique ID">
+                  <i class="fa-solid fa-arrows-rotate mr-0.5"></i> New ID
+                </button>
+                <button id="copy-notion-embed-btn" class="text-[10px] text-violet-400 hover:text-violet-300 transition-colors">
+                  <i class="fa-regular fa-copy mr-0.5"></i> Copy Link
+                </button>
+              </div>
+            </div>
+            <code id="generated-notion-url" class="text-[10px] text-white/80 block break-all font-mono bg-black/40 p-1.5 rounded select-all">https://custom-yt-playlist-widget.vercel.app/</code>
+          </div>
         </div>
 
         <!-- Colors -->
@@ -282,6 +281,14 @@
     // Dynamic Base URL Detection
     const baseUrl = window.location.origin + window.location.pathname;
 
+    // Active session unique ID variable
+    let sessionUniqueId = generateRandomUniqueId();
+
+    // Generate a unique ID (e.g. "pg_a8f2k9x1")
+    function generateRandomUniqueId() {
+      return 'pg_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4);
+    }
+
     // Storage keys unique to each instance/id + global fallback
     const KEY_CARD_COLOR = `yt_card_color_${instanceId}`;
     const KEY_ACCENT_COLOR = `yt_accent_color_${instanceId}`;
@@ -290,13 +297,16 @@
     const KEY_PLAYLIST_URL = `yt_playlist_url_${instanceId}`;
     const GLOBAL_PLAYLIST_KEY = `yt_global_last_playlist_url`;
 
-    function setupInstructionUrls() {
-      const code1 = document.getElementById('code-option-1');
-      const code2 = document.getElementById('code-option-2');
-
+    function updateGeneratedEmbedUrl(rawPlaylist) {
+      const generatedCode = document.getElementById('generated-notion-url');
       const cleanBase = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
-      code1.textContent = `${cleanBase}?playlist=YOUR_PLAYLIST_ID`;
-      code2.textContent = `${cleanBase}?id=characterA`;
+      const cleanId = extractPlaylistId(rawPlaylist);
+
+      if (cleanId) {
+        generatedCode.textContent = `${cleanBase}?playlist=${cleanId}&id=${sessionUniqueId}`;
+      } else {
+        generatedCode.textContent = `${cleanBase}?id=${sessionUniqueId}`;
+      }
     }
 
     function safeStorageGet(key) {
@@ -311,7 +321,7 @@
       try {
         localStorage.setItem(key, value);
       } catch (e) {
-        // Fallback or quiet failure if cookies disabled
+        // Fallback or quiet failure
       }
     }
 
@@ -321,9 +331,6 @@
       const savedOpacity = safeStorageGet(KEY_OPACITY) || '90';
       const savedBgUrl = safeStorageGet(KEY_BG_URL) || '';
       
-      // Attempt 1: Direct URL Parameter
-      // Attempt 2: Instance-specific Local Storage
-      // Attempt 3: Global Last Used Playlist Fallback
       let savedPlaylistUrl = directPlaylistParam 
         || safeStorageGet(KEY_PLAYLIST_URL) 
         || safeStorageGet(GLOBAL_PLAYLIST_KEY) 
@@ -340,6 +347,7 @@
         if (extracted) currentPlaylistId = extracted;
       }
 
+      updateGeneratedEmbedUrl(savedPlaylistUrl);
       applyTheme(savedCardColor, savedAccentColor, savedOpacity, savedBgUrl);
     }
 
@@ -485,7 +493,6 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       loadSavedSettings();
-      setupInstructionUrls();
 
       const settingsPanel = document.getElementById('settings-panel');
       const infoPanel = document.getElementById('info-panel');
@@ -508,22 +515,30 @@
         infoPanel.classList.add('opacity-0', 'pointer-events-none', 'translate-y-3');
       });
 
-      // Copy buttons handler
-      document.querySelectorAll('.copy-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const targetId = btn.getAttribute('data-target');
-          const codeEl = document.getElementById(targetId);
-          if (codeEl) {
-            navigator.clipboard.writeText(codeEl.textContent.trim()).then(() => {
-              const originalHTML = btn.innerHTML;
-              btn.innerHTML = `<i class="fa-solid fa-check mr-0.5"></i> Copied!`;
-              btn.classList.add('text-emerald-400');
-              setTimeout(() => {
-                btn.innerHTML = originalHTML;
-                btn.classList.remove('text-emerald-400');
-              }, 2000);
-            });
-          }
+      // Live update generated URL as user types
+      document.getElementById('playlist-input').addEventListener('input', (e) => {
+        updateGeneratedEmbedUrl(e.target.value);
+      });
+
+      // Regenerate Random ID Button
+      document.getElementById('regen-id-btn').addEventListener('click', () => {
+        sessionUniqueId = generateRandomUniqueId();
+        const rawUrl = document.getElementById('playlist-input').value;
+        updateGeneratedEmbedUrl(rawUrl);
+      });
+
+      // Copy Notion embed link button
+      document.getElementById('copy-notion-embed-btn').addEventListener('click', () => {
+        const generatedCode = document.getElementById('generated-notion-url').textContent;
+        const btn = document.getElementById('copy-notion-embed-btn');
+        navigator.clipboard.writeText(generatedCode.trim()).then(() => {
+          const originalHTML = btn.innerHTML;
+          btn.innerHTML = `<i class="fa-solid fa-check mr-0.5"></i> Copied!`;
+          btn.classList.add('text-emerald-400');
+          setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.classList.remove('text-emerald-400');
+          }, 2000);
         });
       });
 
@@ -614,7 +629,7 @@
           return;
         }
 
-        msg.textContent = '⏳ Loading playlist...';
+        msg.textContent = '⏳ Loaded! Copy link below to lock into Notion.';
         msg.className = 'text-[10px] mt-1 text-emerald-400 block';
 
         currentPlaylistId = cleanPlaylistId;
@@ -622,6 +637,7 @@
         // Save both locally and globally
         safeStorageSet(KEY_PLAYLIST_URL, rawUrl);
         safeStorageSet(GLOBAL_PLAYLIST_KEY, rawUrl);
+        updateGeneratedEmbedUrl(rawUrl);
 
         try {
           if (player && typeof player.loadPlaylist === 'function') {
@@ -637,11 +653,6 @@
         } catch (err) {
           createPlayer(currentPlaylistId);
         }
-
-        setTimeout(() => {
-          msg.className = 'text-[10px] mt-1 hidden';
-          settingsPanel.classList.add('opacity-0', 'pointer-events-none', 'translate-y-3');
-        }, 1200);
       });
     });
   </script>
