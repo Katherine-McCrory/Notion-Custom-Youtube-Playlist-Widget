@@ -9,11 +9,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
+        /* Force body and html transparency for seamless Notion embed */
+        html, body {
+            background-color: transparent !important;
+            background: transparent !important;
             font-family: 'Inter', sans-serif;
             margin: 0;
             padding: 0;
-            background-color: transparent;
             color: #ffffff;
             overflow: hidden;
             user-select: none;
@@ -35,7 +37,7 @@
             background: rgba(255, 255, 255, 0.4);
         }
 
-        /* Smooth slider styling */
+        /* Range Slider Custom Styling */
         input[type="range"] {
             -webkit-appearance: none;
             appearance: none;
@@ -57,7 +59,7 @@
             transform: scale(1.25);
         }
 
-        /* Glassmorphism background effect */
+        /* Glassmorphism panel styling */
         .glass-panel {
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
@@ -69,21 +71,32 @@
             background-repeat: no-repeat;
             transition: background-image 0.3s ease-in-out;
         }
+
+        /* Marquee text on hover if track title is long */
+        .marquee-hover:hover {
+            animation: marquee 8s linear infinite;
+        }
+        @keyframes marquee {
+            0% { transform: translateX(0%); }
+            50% { transform: translateX(-50%); }
+            100% { transform: translateX(0%); }
+        }
     </style>
 </head>
 <body class="p-2 flex items-center justify-center min-h-screen">
 
+    <!-- Player Main Card Container -->
     <div id="playerCard" class="relative w-full max-w-md h-[210px] rounded-2xl p-4 flex flex-col justify-between overflow-hidden shadow-2xl border border-white/10 glass-panel bg-cover-image transition-all duration-300">
         
-        <!-- Dark Overlay for Readability -->
-        <div id="cardOverlay" class="absolute inset-0 bg-black/60 z-0 transition-opacity duration-300"></div>
+        <!-- Dynamic Overlay / Color Layer -->
+        <div id="cardOverlay" class="absolute inset-0 z-0 transition-all duration-300 pointer-events-none"></div>
 
         <!-- Top Header & Settings Trigger -->
         <div class="relative z-10 flex items-center justify-between">
-            <div class="flex items-center gap-2.5 overflow-hidden">
+            <div class="flex items-center gap-2.5 overflow-hidden pr-2">
                 <div id="accentBadge" class="w-2.5 h-7 rounded-full bg-purple-500 flex-shrink-0 transition-colors"></div>
                 <div class="overflow-hidden">
-                    <h1 id="trackTitle" class="text-sm font-semibold truncate leading-tight tracking-wide text-white">Loading Playlist...</h1>
+                    <h1 id="trackTitle" class="text-sm font-semibold truncate leading-tight tracking-wide text-white whitespace-nowrap">Loading Playlist...</h1>
                     <p id="trackAuthor" class="text-xs text-gray-300/80 truncate mt-0.5">YouTube Audio Player</p>
                 </div>
             </div>
@@ -96,6 +109,7 @@
             </button>
         </div>
 
+        <!-- Scrubber and Time Indicators -->
         <div class="relative z-10 my-auto">
             <div class="flex items-center justify-between text-[11px] text-gray-300 font-mono mb-1.5">
                 <span id="currentTime">0:00</span>
@@ -104,22 +118,23 @@
             <input type="range" id="progressBar" min="0" max="100" value="0" class="w-full h-1.5 cursor-pointer">
         </div>
 
+        <!-- Controls Section -->
         <div class="relative z-10 flex items-center justify-between">
             <!-- Shuffle & Repeat Controls -->
             <div class="flex items-center gap-1.5">
-                <button id="shuffleBtn" class="p-2 rounded-lg text-gray-400 hover:text-white transition active:scale-95" title="Shuffle">
+                <button id="shuffleBtn" class="p-2 rounded-lg text-gray-400 hover:text-white transition active:scale-95" title="Shuffle Playlist">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
                     </svg>
                 </button>
-                <button id="repeatBtn" class="p-2 rounded-lg text-gray-400 hover:text-white transition active:scale-95" title="Repeat">
+                <button id="repeatBtn" class="p-2 rounded-lg text-gray-400 hover:text-white transition active:scale-95" title="Loop Mode">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                     </svg>
                 </button>
             </div>
 
-            <!-- Main Playback Controls -->
+            <!-- Primary Playback Controls -->
             <div class="flex items-center gap-3">
                 <!-- Previous Button -->
                 <button id="prevBtn" class="p-2 text-white/80 hover:text-white transition active:scale-90" title="Previous Track">
@@ -128,13 +143,13 @@
                     </svg>
                 </button>
 
-                <!-- Primary Play/Pause Toggle Button (Clean SVG Toggle) -->
-                <button id="playPauseBtn" class="w-11 h-11 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition shadow-lg" title="Play/Pause">
-                    <!-- Dynamic Play SVG Icon -->
+                <!-- Dynamic Play/Pause Button -->
+                <button id="playPauseBtn" class="w-11 h-11 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition shadow-lg" title="Play / Pause">
+                    <!-- Crisp Play SVG Icon -->
                     <svg id="playIcon" class="w-5 h-5 fill-current translate-x-0.5" viewBox="0 0 24 24">
                         <path d="M8 5v14l11-7z"/>
                     </svg>
-                    <!-- Dynamic Pause SVG Icon -->
+                    <!-- Crisp Pause SVG Icon -->
                     <svg id="pauseIcon" class="w-5 h-5 fill-current hidden" viewBox="0 0 24 24">
                         <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
                     </svg>
@@ -148,9 +163,9 @@
                 </button>
             </div>
 
-            <!-- Volume Slider & Toggle -->
+            <!-- Volume Controls -->
             <div class="flex items-center gap-1.5 w-24">
-                <button id="muteBtn" class="p-1 text-gray-300 hover:text-white transition">
+                <button id="muteBtn" class="p-1 text-gray-300 hover:text-white transition" title="Mute / Unmute">
                     <svg id="volumeIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M11 5L6 9H2v6h4l5 4V5z"></path>
                     </svg>
@@ -160,11 +175,12 @@
         </div>
     </div>
 
-    <!-- Hidden YouTube API Iframe Player Container -->
+    <!-- Hidden YouTube API Frame Container -->
     <div class="hidden">
         <div id="youtubePlayer"></div>
     </div>
 
+    <!-- Settings Modal -->
     <div id="settingsModal" class="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-200">
         <div class="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-sm p-5 shadow-2xl flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
             
@@ -173,7 +189,7 @@
                     <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
                     </svg>
-                    Instance Settings
+                    Widget Settings
                 </h2>
                 <button id="closeSettingsBtn" class="text-gray-400 hover:text-white p-1 rounded-lg">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -182,53 +198,61 @@
                 </button>
             </div>
 
-            <!-- YouTube Playlist URL / ID Section -->
+            <!-- Playlist URL input -->
             <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-medium text-gray-300">YouTube Playlist URL or ID</label>
+                <label class="text-xs font-medium text-gray-300">YouTube Playlist Link or ID</label>
                 <div class="flex gap-2">
-                    <input type="text" id="playlistInput" placeholder="https://www.youtube.com/playlist?list=PL..." class="flex-1 bg-gray-800 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500">
+                    <input type="text" id="playlistInput" placeholder="https://www.youtube.com/playlist?list=..." class="flex-1 bg-gray-800 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500">
                     <button id="loadPlaylistBtn" class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-2 rounded-xl text-xs font-semibold active:scale-95 transition">Load</button>
                 </div>
                 <p id="playlistStatus" class="text-[11px] text-emerald-400 hidden mt-0.5"></p>
             </div>
 
-            <!-- Unique Instance ID Setting -->
+            <!-- Instance ID Input -->
             <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-medium text-gray-300">Unique Instance ID / Character</label>
+                <label class="text-xs font-medium text-gray-300">Instance ID (for multiple widgets)</label>
                 <div class="flex gap-2">
-                    <input type="text" id="instanceIdInput" placeholder="e.g. character1" class="flex-1 bg-gray-800 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500">
+                    <input type="text" id="instanceIdInput" placeholder="e.g. page1-player" class="flex-1 bg-gray-800 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500">
                     <button id="setInstanceBtn" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-xl text-xs font-medium transition">Set ID</button>
                 </div>
             </div>
 
-            <!-- Card Customization Section -->
+            <!-- Card Visual Styling Customization -->
             <div class="space-y-3 pt-2 border-t border-white/10">
-                <div class="flex flex-col gap-1.5">
-                    <label class="text-xs font-medium text-gray-300">Background Image / GIF URL</label>
-                    <input type="text" id="bgImageInput" placeholder="https://example.com/image.gif" class="w-full bg-gray-800 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500">
-                </div>
-
                 <div class="grid grid-cols-2 gap-3">
                     <div class="flex flex-col gap-1.5">
-                        <label class="text-xs font-medium text-gray-300">Overlay Opacity</label>
-                        <input type="range" id="overlayOpacityInput" min="0" max="100" value="60" class="w-full h-1.5">
+                        <label class="text-xs font-medium text-gray-300">Card Base Color</label>
+                        <input type="color" id="cardColorInput" value="#0f172a" class="w-full h-8 bg-transparent rounded-lg cursor-pointer">
                     </div>
                     <div class="flex flex-col gap-1.5">
                         <label class="text-xs font-medium text-gray-300">Accent Color</label>
                         <input type="color" id="accentColorInput" value="#a855f7" class="w-full h-8 bg-transparent rounded-lg cursor-pointer">
                     </div>
                 </div>
+
+                <div class="flex flex-col gap-1.5">
+                    <div class="flex justify-between items-center text-xs font-medium text-gray-300">
+                        <label>Card Opacity</label>
+                        <span id="opacityValLabel">70%</span>
+                    </div>
+                    <input type="range" id="overlayOpacityInput" min="0" max="100" value="70" class="w-full h-1.5">
+                </div>
+
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-xs font-medium text-gray-300">Background Image / GIF URL (Optional)</label>
+                    <input type="text" id="bgImageInput" placeholder="https://example.com/image.gif" class="w-full bg-gray-800 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500">
+                </div>
             </div>
 
-            <!-- Embed Code & Notion Export Section -->
+            <!-- Embed Code & Export Button -->
             <div class="pt-3 border-t border-white/10 flex flex-col gap-2">
                 <button id="copyNotionLinkBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-2 active:scale-95 transition shadow-md">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
                     </svg>
                     Copy Permanent Embed Link
                 </button>
-                <p id="copySuccessMsg" class="text-[10px] text-center text-emerald-400 hidden">Copied URL with full playlist URL to clipboard!</p>
+                <p id="copySuccessMsg" class="text-[10px] text-center text-emerald-400 hidden">Copied URL with full playlist parameter to clipboard!</p>
             </div>
         </div>
     </div>
@@ -245,26 +269,25 @@
         let isPlaying = false;
         let updateTimer = null;
         let currentInstanceId = "default";
-        let fullPlaylistUrl = "https://www.youtube.com/playlist?list=PLJYIXcNxi-qw";
-        let extractedListId = "PLJYIXcNxi-qw";
+        let defaultPlaylistUrl = "https://www.youtube.com/playlist?list=PLJYIXcNxi-qw";
 
-        // Config defaults
+        // Application Config
         let config = {
-            playlistUrl: fullPlaylistUrl,
-            bgImage: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=1000&auto=format&fit=crop",
-            overlayOpacity: 60,
+            playlistUrl: defaultPlaylistUrl,
+            cardColor: "#0f172a",
+            bgImage: "",
+            overlayOpacity: 70,
             accentColor: "#a855f7"
         };
 
         function parseQueryParameters() {
             const params = new URLSearchParams(window.location.search);
             
-            // Handle instance ID parameter
             if (params.has('id')) {
                 currentInstanceId = params.get('id').trim() || "default";
             }
 
-            // Load stored config for this instance if present
+            // Load stored config for this isolated instance
             const storedConfig = localStorage.getItem(`yt_widget_config_${currentInstanceId}`);
             if (storedConfig) {
                 try {
@@ -272,30 +295,22 @@
                 } catch(e) { console.error("Error reading stored config", e); }
             }
 
-            // URL params override saved settings if specified
+            // URL query overrides defaults
             if (params.has('playlist')) {
                 let p = params.get('playlist');
-                if (p) {
-                    config.playlistUrl = p;
-                }
+                if (p) config.playlistUrl = p;
             }
-
-            // Extract exact list ID from playlist URL or raw string
-            extractedListId = extractListId(config.playlistUrl);
         }
 
         function extractListId(input) {
             if (!input) return "PLJYIXcNxi-qw";
             input = input.trim();
-            
-            // Check for list= parameter in URL
             if (input.includes('list=')) {
                 try {
                     const match = input.match(/[?&]list=([^&]+)/);
                     if (match && match[1]) return match[1];
                 } catch(e) {}
             }
-            // Return raw string assuming it's already an ID
             return input;
         }
 
@@ -303,25 +318,50 @@
             localStorage.setItem(`yt_widget_config_${currentInstanceId}`, JSON.stringify(config));
         }
 
+        // Hex to RGB Helper Function
+        function hexToRgb(hex) {
+            hex = hex.replace('#', '');
+            if (hex.length === 3) {
+                hex = hex.split('').map(char => char + char).join('');
+            }
+            const num = parseInt(hex, 16);
+            return {
+                r: (num >> 16) & 255,
+                g: (num >> 8) & 255,
+                b: num & 255
+            };
+        }
+
         function applyVisualTheme() {
             const playerCard = document.getElementById('playerCard');
             const cardOverlay = document.getElementById('cardOverlay');
             const accentBadge = document.getElementById('accentBadge');
-            const playPauseBtn = document.getElementById('playPauseBtn');
+            const opacityLabel = document.getElementById('opacityValLabel');
 
-            if (config.bgImage) {
+            // Apply card background image if present
+            if (config.bgImage && config.bgImage.trim() !== '') {
                 playerCard.style.backgroundImage = `url('${config.bgImage}')`;
             } else {
                 playerCard.style.backgroundImage = 'none';
             }
 
-            cardOverlay.style.opacity = (config.overlayOpacity / 100).toString();
+            // Set Card Overlay with Color and Opacity
+            const rgb = hexToRgb(config.cardColor || "#0f172a");
+            const alpha = (config.overlayOpacity / 100).toFixed(2);
+            cardOverlay.style.backgroundColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+
+            // Accent Colors
             accentBadge.style.backgroundColor = config.accentColor;
             document.documentElement.style.setProperty('--accent-color', config.accentColor);
 
-            // Sync inputs in modal
-            document.getElementById('playlistInput').value = config.playlistUrl;
+            if (opacityLabel) {
+                opacityLabel.textContent = `${config.overlayOpacity}%`;
+            }
+
+            // Sync Settings Form UI Inputs
+            document.getElementById('playlistInput').value = config.playlistUrl || "";
             document.getElementById('instanceIdInput').value = currentInstanceId;
+            document.getElementById('cardColorInput').value = config.cardColor || "#0f172a";
             document.getElementById('bgImageInput').value = config.bgImage || "";
             document.getElementById('overlayOpacityInput').value = config.overlayOpacity;
             document.getElementById('accentColorInput').value = config.accentColor;
@@ -331,12 +371,14 @@
             parseQueryParameters();
             applyVisualTheme();
 
+            const listId = extractListId(config.playlistUrl);
+
             player = new YT.Player('youtubePlayer', {
                 height: '0',
                 width: '0',
                 playerVars: {
                     'listType': 'playlist',
-                    'list': extractedListId,
+                    'list': listId,
                     'autoplay': 0,
                     'controls': 0,
                     'disablekb': 1,
@@ -376,7 +418,6 @@
         }
 
         function onPlayerStateChange(event) {
-            // YT.PlayerState: PLAYING (1), PAUSED (2), BUFFERING (3), CUED (5)
             if (event.data === YT.PlayerState.PLAYING) {
                 setPlayPauseUI(true);
                 updateTrackInfo();
@@ -430,7 +471,6 @@
                     progressBar.value = 0;
                 }
 
-                // Periodic title refresh
                 if (isPlaying) {
                     updateTrackInfo();
                 }
@@ -438,7 +478,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            // Controls
+            // Playback controls
             document.getElementById('playPauseBtn').addEventListener('click', togglePlayPause);
             
             document.getElementById('nextBtn').addEventListener('click', () => {
@@ -449,7 +489,20 @@
                 if (player && player.previousVideo) player.previousVideo();
             });
 
-            // Progress bar scrubbing
+            document.getElementById('shuffleBtn').addEventListener('click', () => {
+                if (player && player.setShuffle) {
+                    player.setShuffle(true);
+                    player.nextVideo();
+                }
+            });
+
+            document.getElementById('repeatBtn').addEventListener('click', () => {
+                if (player && player.setLoop) {
+                    player.setLoop(true);
+                }
+            });
+
+            // Progress scrubbing
             document.getElementById('progressBar').addEventListener('input', (e) => {
                 if (!player || typeof player.getDuration !== 'function') return;
                 const duration = player.getDuration();
@@ -459,7 +512,7 @@
                 }
             });
 
-            // Volume Controls
+            // Volume controls
             const volumeSlider = document.getElementById('volumeSlider');
             volumeSlider.addEventListener('input', (e) => {
                 if (!player) return;
@@ -483,7 +536,7 @@
                 }
             });
 
-            // Settings Modal Toggles
+            // Modal Toggles
             const modal = document.getElementById('settingsModal');
             document.getElementById('openSettingsBtn').addEventListener('click', () => {
                 modal.classList.remove('hidden');
@@ -495,29 +548,29 @@
                 setTimeout(() => modal.classList.add('hidden'), 200);
             });
 
-            // Playlist URL Load
+            // Load Playlist
             document.getElementById('loadPlaylistBtn').addEventListener('click', () => {
                 const inputVal = document.getElementById('playlistInput').value.trim();
                 if (!inputVal) return;
 
                 config.playlistUrl = inputVal;
-                extractedListId = extractListId(inputVal);
+                const listId = extractListId(inputVal);
                 saveInstanceConfig();
 
                 if (player && player.loadPlaylist) {
                     player.loadPlaylist({
                         listType: 'playlist',
-                        list: extractedListId
+                        list: listId
                     });
                     
                     const statusMsg = document.getElementById('playlistStatus');
-                    statusMsg.textContent = "Loaded! Copy link below into Notion.";
+                    statusMsg.textContent = "Loaded playlist successfully!";
                     statusMsg.classList.remove('hidden');
-                    setTimeout(() => statusMsg.classList.add('hidden'), 4000);
+                    setTimeout(() => statusMsg.classList.add('hidden'), 3000);
                 }
             });
 
-            // Set Instance ID Button
+            // Set Instance ID
             document.getElementById('setInstanceBtn').addEventListener('click', () => {
                 const newId = document.getElementById('instanceIdInput').value.trim();
                 if (newId) {
@@ -527,7 +580,13 @@
                 }
             });
 
-            // Live Customization Listeners
+            // Color & Background Controls
+            document.getElementById('cardColorInput').addEventListener('input', (e) => {
+                config.cardColor = e.target.value;
+                applyVisualTheme();
+                saveInstanceConfig();
+            });
+
             document.getElementById('bgImageInput').addEventListener('input', (e) => {
                 config.bgImage = e.target.value.trim();
                 applyVisualTheme();
@@ -546,14 +605,12 @@
                 saveInstanceConfig();
             });
 
+            // Copy Permanent Embed Link with full playlist URL
             document.getElementById('copyNotionLinkBtn').addEventListener('click', () => {
                 const baseUrl = window.location.origin + window.location.pathname;
-                
-                // Construct link using full URL encoding
                 const encodedPlaylistUrl = encodeURIComponent(config.playlistUrl);
                 const finalUrl = `${baseUrl}?playlist=${encodedPlaylistUrl}&id=${encodeURIComponent(currentInstanceId)}`;
 
-                // Copy to clipboard
                 const tempInput = document.createElement('input');
                 tempInput.value = finalUrl;
                 document.body.appendChild(tempInput);
