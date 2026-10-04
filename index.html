@@ -223,7 +223,7 @@
               </div>
               <div class="flex-1 text-[10px] leading-snug">
                 <strong class="text-amber-200 font-semibold block mb-0.5">Notion Link Setup:</strong>
-                <p class="text-white/80">Copy the unique embed URL below into your Notion embed block to retain this character's individual theme!</p>
+                <p class="text-white/80">Copy the unique embed URL below into your Notion embed block to retain this character's individual theme and playlist!</p>
               </div>
             </div>
           </div>
@@ -291,7 +291,10 @@
     // 1. ?id= or ?instance= parameter in URL
     // 2. Saved instance ID or new random string generated
     let currentInstanceId = urlParams.get('id') || urlParams.get('instance') || generateRandomUniqueId();
-    let currentPlaylistId = extractPlaylistId(urlParams.get('playlist') || urlParams.get('list')) || defaultPlaylistId;
+    
+    // Check local storage for saved playlist IF not explicitly passed in URL query parameter
+    let savedPlaylist = getSavedPlaylistForInstance(currentInstanceId);
+    let currentPlaylistId = extractPlaylistId(urlParams.get('playlist') || urlParams.get('list')) || savedPlaylist || defaultPlaylistId;
 
     // Dynamic Base URL Detection
     const baseUrl = window.location.origin + window.location.pathname;
@@ -313,9 +316,20 @@
       try { localStorage.setItem(key, value); } catch (e) {}
     }
 
+    function getSavedPlaylistForInstance(instId) {
+      try {
+        const raw = safeStorageGet(`yt_widget_config_${instId}`);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          return parsed.playlistId || null;
+        }
+      } catch (e) {}
+      return null;
+    }
+
     function updateGeneratedEmbedUrl() {
       const generatedCode = document.getElementById('generated-notion-url');
-      const cleanBase = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+      const cleanBase = baseUrl.endsWith('/') ? baseUrl : baseUrl;
       
       const params = new URLSearchParams();
       if (currentPlaylistId) params.set('playlist', currentPlaylistId);
@@ -422,33 +436,44 @@
       updateTrackInfo();
     }
 
+    // Streamlined Play Button UI Synchronizer
     function updatePlayButtonUI(playing) {
       isPlaying = playing;
       const playIcon = document.getElementById('play-icon');
-      playIcon.className = playing ? 'fa-solid fa-pause text-xs' : 'fa-solid fa-play text-xs translate-x-0.5';
+      if (playing) {
+        playIcon.className = 'fa-solid fa-pause text-xs';
+      } else {
+        playIcon.className = 'fa-solid fa-play text-xs translate-x-0.5';
+      }
     }
 
     function onPlayerStateChange(event) {
       const statusBadge = document.getElementById('player-status');
 
-      if (event.data === YT.PlayerState.PLAYING) {
-        updatePlayButtonUI(true);
-        statusBadge.textContent = 'Playing';
-        startTimer();
-      } else if (event.data === YT.PlayerState.PAUSED) {
-        updatePlayButtonUI(false);
-        statusBadge.textContent = 'Paused';
-        stopTimer();
-      } else if (event.data === YT.PlayerState.BUFFERING) {
-        statusBadge.textContent = 'Buffering';
-      } else if (event.data === YT.PlayerState.ENDED) {
-        updatePlayButtonUI(false);
-        statusBadge.textContent = 'Ended';
-        stopTimer();
-      } else {
-        updatePlayButtonUI(false);
-        statusBadge.textContent = 'Ready';
-        stopTimer();
+      switch (event.data) {
+        case YT.PlayerState.PLAYING:
+          updatePlayButtonUI(true);
+          statusBadge.textContent = 'Playing';
+          startTimer();
+          break;
+        case YT.PlayerState.PAUSED:
+          updatePlayButtonUI(false);
+          statusBadge.textContent = 'Paused';
+          stopTimer();
+          break;
+        case YT.PlayerState.BUFFERING:
+          statusBadge.textContent = 'Buffering';
+          break;
+        case YT.PlayerState.ENDED:
+          updatePlayButtonUI(false);
+          statusBadge.textContent = 'Ended';
+          stopTimer();
+          break;
+        default:
+          updatePlayButtonUI(false);
+          statusBadge.textContent = 'Ready';
+          stopTimer();
+          break;
       }
       updateTrackInfo();
     }
@@ -468,7 +493,18 @@
     function startTimer() {
       stopTimer();
       updateTimer = setInterval(() => {
-        if (!player || !isPlaying) return;
+        if (!player) return;
+        
+        // Double-check real playback state from YT player directly
+        if (typeof player.getPlayerState === 'function') {
+          const state = player.getPlayerState();
+          if (state === YT.PlayerState.PLAYING && !isPlaying) {
+            updatePlayButtonUI(true);
+          } else if (state === YT.PlayerState.PAUSED && isPlaying) {
+            updatePlayButtonUI(false);
+          }
+        }
+
         const current = player.getCurrentTime() || 0;
         const total = player.getDuration() || 0;
         document.getElementById('curr-time').textContent = formatTime(current);
@@ -557,10 +593,16 @@
         }, 2000);
       });
 
+      // Play / Pause toggle with immediate state update
       document.getElementById('play-btn').addEventListener('click', () => {
         if (!player) return;
-        if (isPlaying) player.pauseVideo();
-        else player.playVideo();
+        if (isPlaying) {
+          player.pauseVideo();
+          updatePlayButtonUI(false);
+        } else {
+          player.playVideo();
+          updatePlayButtonUI(true);
+        }
       });
 
       document.getElementById('next-btn').addEventListener('click', () => player && player.nextVideo());
