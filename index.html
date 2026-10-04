@@ -138,23 +138,26 @@
         <input type="range" id="progress-bar" min="0" max="100" value="0" class="w-full cursor-pointer">
       </div>
 
-      <!-- Controls Row -->
+      <!-- Controls Row (Symmetrically Balanced) -->
       <div class="flex items-center justify-between pt-0.5">
-        <div class="flex items-center gap-1.5 w-20">
-          <button id="mute-btn" class="text-white/70 hover:text-white transition-colors">
+        
+        <!-- Left Section (Balanced Width: w-24) -->
+        <div class="flex items-center gap-1.5 w-24">
+          <button id="mute-btn" class="text-white/70 hover:text-white transition-colors flex-shrink-0">
             <i id="volume-icon" class="fa-solid fa-volume-high text-[11px]"></i>
           </button>
           <input type="range" id="volume-slider" min="0" max="100" value="80" class="w-full">
         </div>
 
-        <div class="flex items-center gap-3">
+        <!-- Middle Section (Centered) -->
+        <div class="flex items-center justify-center gap-3">
           <button id="prev-btn" class="text-white/70 hover:text-white transition-colors text-xs">
             <i class="fa-solid fa-backward-step"></i>
           </button>
           
-          <!-- Play/Pause Button with SVG symbol swap -->
+          <!-- Play/Pause Button -->
           <button id="play-btn" class="w-8 h-8 rounded-full bg-violet-600 text-white flex items-center justify-center hover:scale-105 transition-all shadow-md flex-shrink-0">
-            <svg id="play-icon" class="w-4 h-4 fill-current translate-x-0.5" viewBox="0 0 24 24">
+            <svg id="play-icon" class="w-4 h-4 fill-current" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z"/>
             </svg>
           </button>
@@ -164,7 +167,8 @@
           </button>
         </div>
 
-        <div class="flex items-center gap-2">
+        <!-- Right Section (Balanced Width: w-24) -->
+        <div class="flex items-center justify-end gap-2 w-24">
           <button id="shuffle-btn" class="text-white/40 hover:text-white transition-colors text-xs p-1" title="Shuffle Playlist">
             <i class="fa-solid fa-shuffle"></i>
           </button>
@@ -277,7 +281,6 @@
         }
       }
 
-      // Fallback for iframe restrictions (Notion)
       try {
         const textArea = document.createElement('textarea');
         textArea.value = textToCopy;
@@ -397,10 +400,8 @@
 
       if (playing) {
         pathElement.setAttribute('d', PAUSE_SVG_PATH);
-        playIcon.classList.remove('translate-x-0.5');
       } else {
         pathElement.setAttribute('d', PLAY_SVG_PATH);
-        playIcon.classList.add('translate-x-0.5');
       }
     }
 
