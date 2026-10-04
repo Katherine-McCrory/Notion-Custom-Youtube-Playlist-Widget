@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Notion YouTube Music Widget</title>
   
+  <!-- Force dark color scheme -->
   <meta name="color-scheme" content="dark">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
@@ -21,6 +22,7 @@
       height: 100%;
     }
 
+    /* Marquee animation for long track names */
     .marquee-container {
       overflow: hidden;
       white-space: nowrap;
@@ -39,6 +41,7 @@
       100% { transform: translate(-100%, 0); }
     }
 
+    /* Range Sliders */
     input[type=range] {
       -webkit-appearance: none;
       background: rgba(255, 255, 255, 0.2);
@@ -58,6 +61,7 @@
       transform: scale(1.2);
     }
 
+    /* Custom Scrollbar */
     .custom-scroll::-webkit-scrollbar {
       width: 4px;
     }
@@ -70,6 +74,7 @@
       border-radius: 4px;
     }
 
+    /* Card styling */
     .widget-card {
       background-color: var(--card-bg, rgba(30, 41, 59, 0.95));
       backdrop-filter: blur(var(--card-blur, 12px));
@@ -77,17 +82,7 @@
       border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
-    @keyframes pulseGlow {
-      0% { box-shadow: 0 0 0px rgba(139, 92, 246, 0); }
-      50% { box-shadow: 0 0 15px rgba(139, 92, 246, 0.8); }
-      100% { box-shadow: 0 0 0px rgba(139, 92, 246, 0); }
-    }
-    .highlight-embed-box {
-      animation: pulseGlow 1.5s ease-in-out infinite;
-      border-color: #8b5cf6 !important;
-    }
-
-    #yt-player-frame {
+    #yt-player-container {
       position: absolute;
       width: 1px;
       height: 1px;
@@ -95,41 +90,57 @@
       pointer-events: none;
       left: -9999px;
     }
+
+    /* Pulsing border animation to grab attention when playlist changes */
+    @keyframes pulse-border {
+      0%, 100% { border-color: rgba(139, 92, 246, 0.8); box-shadow: 0 0 10px rgba(139, 92, 246, 0.5); }
+      50% { border-color: rgba(236, 72, 153, 0.8); box-shadow: 0 0 18px rgba(236, 72, 153, 0.7); }
+    }
+    .highlight-embed-box {
+      animation: pulse-border 2s infinite ease-in-out;
+    }
   </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-1 select-none">
 
+  <!-- Compact Height Widget Container -->
   <div id="widget" class="widget-card relative w-full max-w-md rounded-2xl p-3 shadow-2xl text-white transition-all duration-300 overflow-hidden">
     
+    <!-- Background Image / GIF Layer -->
     <div id="bg-overlay" class="absolute inset-0 bg-cover bg-center pointer-events-none transition-opacity duration-300 opacity-0" style="z-index: 0;"></div>
     <div id="bg-dim" class="absolute inset-0 bg-black/40 pointer-events-none transition-opacity duration-300 opacity-0" style="z-index: 1;"></div>
 
     <!-- Main Content -->
     <div class="relative z-10 flex flex-col gap-2">
       
-      <!-- Top Section -->
+      <!-- Top Section: Track Header -->
       <div class="flex items-center gap-2.5">
+        <!-- Thumbnail -->
         <div class="relative group w-11 h-11 flex-shrink-0 rounded-lg overflow-hidden bg-black/40 border border-white/10 shadow-inner">
           <img id="track-thumb" src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=150&auto=format&fit=crop&q=80" alt="Thumbnail" class="w-full h-full object-cover">
         </div>
 
+        <!-- Track Info -->
         <div class="flex-1 min-w-0">
           <div class="marquee-container w-full">
-            <h1 id="track-title" class="marquee-content font-bold text-xs text-white">No Playlist Loaded</h1>
+            <h1 id="track-title" class="marquee-content font-bold text-xs text-white">Loading Playlist...</h1>
           </div>
           
           <div class="flex items-center gap-2 mt-0.5">
-            <span id="status-badge" class="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-white/10 text-white/70">Idle</span>
+            <span id="player-status" class="bg-white/10 px-1.5 py-0.5 rounded text-[10px] text-white/70 font-medium">Ready</span>
             <span class="text-[10px] text-white/50 font-mono"><span id="curr-time">0:00</span> / <span id="total-time">0:00</span></span>
           </div>
         </div>
 
+        <!-- Action Buttons -->
         <div class="flex items-center gap-1">
           <button id="restart-btn" class="text-white/60 hover:text-white p-1 transition-colors" title="Restart Playlist">
             <i class="fa-solid fa-rotate-left text-xs"></i>
           </button>
-          <button id="settings-toggle" class="text-white/60 hover:text-white p-1 transition-colors" title="Settings">
+          
+          <button id="settings-toggle" class="text-white/60 hover:text-white p-1 transition-colors relative" title="Settings">
             <i class="fa-solid fa-sliders text-xs"></i>
+            <span id="settings-badge" class="absolute -top-0.5 -right-0.5 w-2 h-2 bg-amber-400 rounded-full animate-ping hidden"></span>
           </button>
         </div>
       </div>
@@ -141,35 +152,29 @@
 
       <!-- Controls Row -->
       <div class="flex items-center justify-between pt-0.5">
-        
-        <!-- Volume Section -->
-        <div class="flex items-center gap-1.5 w-24">
-          <button id="mute-btn" class="text-white/70 hover:text-white transition-colors flex-shrink-0">
+        <!-- Volume Control -->
+        <div class="flex items-center gap-1.5 w-20">
+          <button id="mute-btn" class="text-white/70 hover:text-white transition-colors">
             <i id="volume-icon" class="fa-solid fa-volume-high text-[11px]"></i>
           </button>
           <input type="range" id="volume-slider" min="0" max="100" value="80" class="w-full">
         </div>
 
         <!-- Playback Controls -->
-        <div class="flex items-center justify-center gap-3">
+        <div class="flex items-center gap-3">
           <button id="prev-btn" class="text-white/70 hover:text-white transition-colors text-xs">
             <i class="fa-solid fa-backward-step"></i>
           </button>
-          
-          <!-- Play/Pause Button -->
-          <button id="play-btn" class="w-8 h-8 rounded-full bg-violet-600 text-white flex items-center justify-center hover:scale-105 transition-all shadow-md flex-shrink-0">
-            <svg id="play-icon" class="w-4 h-4 fill-current" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z"/>
-            </svg>
+          <button id="play-btn" class="w-8 h-8 rounded-full bg-violet-600 text-white flex items-center justify-center hover:scale-105 transition-all shadow-md">
+            <i id="play-icon" class="fa-solid fa-play text-xs translate-x-0.5"></i>
           </button>
-
           <button id="next-btn" class="text-white/70 hover:text-white transition-colors text-xs">
             <i class="fa-solid fa-forward-step"></i>
           </button>
         </div>
 
-        <!-- Modes -->
-        <div class="flex items-center justify-end gap-2 w-24">
+        <!-- Shuffle & Repeat -->
+        <div class="flex items-center gap-2">
           <button id="shuffle-btn" class="text-white/40 hover:text-white transition-colors text-xs p-1" title="Shuffle Playlist">
             <i class="fa-solid fa-shuffle"></i>
           </button>
@@ -183,46 +188,62 @@
     <!-- Settings Overlay -->
     <div id="settings-panel" class="absolute inset-0 z-20 bg-slate-900/95 backdrop-blur-md p-3 flex flex-col h-full transition-all duration-300 opacity-0 pointer-events-none translate-y-3">
       <div class="flex items-center justify-between border-b border-white/10 pb-1.5 mb-2 flex-shrink-0">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-white/80"><i class="fa-solid fa-gear mr-1"></i> Widget Settings</h2>
+        <h2 class="text-xs font-bold uppercase tracking-wider text-white/80"><i class="fa-solid fa-gear mr-1"></i> Instance Settings</h2>
         <button id="close-settings" class="text-white/60 hover:text-white text-xs"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <div class="custom-scroll flex-1 overflow-y-auto space-y-2.5 text-xs pr-1.5 pb-4">
         
-        <!-- CALLOUT ALERT -->
-        <div class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-2 text-[10px] text-amber-200/90 flex gap-1.5 items-start">
-          <i class="fa-solid fa-triangle-exclamation text-amber-400 mt-0.5 flex-shrink-0"></i>
-          <div>
-            <strong class="font-bold text-amber-300">Permanent Link Tip:</strong>
-            <p class="text-[9.5px] opacity-90 leading-tight mt-0.5">Click "Copy Permanent Embed Link" below and replace the link in Notion so each character keeps its own playlist!</p>
-          </div>
-        </div>
-
-        <!-- Playlist URL Input & Auto-Generated Embed Link -->
+        <!-- Playlist Input Section -->
         <div class="space-y-1.5">
-          <label class="block text-white/70 text-[11px]">YouTube Playlist Link</label>
+          <label class="block text-white/70 text-[11px]">YouTube Playlist URL or ID</label>
           <div class="flex gap-1.5">
             <input type="text" id="playlist-input" placeholder="https://www.youtube.com/playlist?list=..." class="flex-1 bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-white text-[11px] placeholder-white/30 focus:outline-none focus:border-violet-500">
             <button id="load-playlist-btn" class="bg-violet-600 hover:bg-violet-500 px-2.5 py-1 rounded-lg font-medium text-white text-[11px] transition-colors flex-shrink-0">Load</button>
           </div>
           <p id="playlist-msg" class="text-[10px] hidden"></p>
 
-          <!-- Auto-Generated Embed URL Box -->
-          <div id="embed-box" class="bg-black/50 p-2 rounded-lg border border-white/10 space-y-1 mt-1 transition-all">
-            <div class="flex justify-between items-center">
-              <span class="text-[10px] text-violet-300 font-semibold">Notion Permanent Link</span>
+          <!-- Instance ID Customization -->
+          <div class="pt-1">
+            <label class="block text-white/70 text-[11px] mb-1">Unique Instance ID / Character</label>
+            <div class="flex gap-1.5">
+              <input type="text" id="instance-id-input" placeholder="e.g. char_charles" class="flex-1 bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-white text-[11px] placeholder-white/30 focus:outline-none focus:border-violet-500 font-mono">
+              <button id="regen-id-btn" class="bg-white/10 hover:bg-white/20 text-white px-2 py-1 rounded-lg text-[11px] transition-colors" title="Generate Random ID">
+                <i class="fa-solid fa-arrows-rotate mr-0.5"></i> Auto ID
+              </button>
             </div>
-            
-            <code id="generated-notion-url" class="text-[10px] text-white/80 block break-all font-mono bg-black/40 p-1.5 rounded select-all">https://custom-yt-playlist-widget.vercel.app/</code>
-            
-            <button id="copy-notion-embed-btn" class="w-full mt-1.5 bg-violet-600 hover:bg-violet-500 text-white py-1 rounded text-[11px] font-medium flex items-center justify-center gap-1 transition-all shadow-md">
-              <i class="fa-regular fa-copy"></i> Copy Permanent Embed Link
-            </button>
+            <p class="text-[9px] text-white/50 mt-0.5">Keeps themes isolated even when sharing identical playlists.</p>
+          </div>
+
+          <!-- Dynamic Attention Callout Banner -->
+          <div id="embed-callout-banner" class="mt-2 p-2 rounded-xl bg-gradient-to-r from-amber-500/20 via-violet-600/20 to-purple-600/20 border border-amber-500/40 relative overflow-hidden">
+            <div class="flex items-start gap-2">
+              <div class="w-4 h-4 rounded-full bg-amber-500/30 text-amber-300 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <i class="fa-solid fa-circle-info text-[9px]"></i>
+              </div>
+              <div class="flex-1 text-[10px] leading-snug">
+                <strong class="text-amber-200 font-semibold block mb-0.5">Notion Link Setup:</strong>
+                <p class="text-white/80">Copy the unique embed URL below into your Notion embed block to retain this character's individual theme!</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Auto-Generated Unique Embed Link Box -->
+          <div id="embed-link-box" class="bg-black/60 p-2 rounded-xl border border-violet-500/40 space-y-1.5 mt-1 transition-all duration-300">
+            <div class="flex justify-between items-center">
+              <span class="text-[10px] text-violet-300 font-semibold flex items-center gap-1">
+                <i class="fa-solid fa-link text-[9px]"></i> Unique Notion Link
+              </span>
+              <button id="copy-notion-embed-btn" class="bg-violet-600 hover:bg-violet-500 text-white font-medium px-2 py-0.5 rounded text-[10px] transition-all shadow-md flex items-center gap-1">
+                <i class="fa-regular fa-copy"></i> Copy Link
+              </button>
+            </div>
+            <code id="generated-notion-url" class="text-[10px] text-white/90 block break-all font-mono bg-black/50 p-1.5 rounded-lg border border-white/5 select-all">Loading...</code>
           </div>
         </div>
 
-        <!-- Colors -->
-        <div class="grid grid-cols-2 gap-2">
+        <!-- Color Customization -->
+        <div class="grid grid-cols-2 gap-2 pt-1 border-t border-white/10">
           <div>
             <label class="block text-white/70 mb-1 text-[11px]">Card Color</label>
             <input type="color" id="card-color-picker" value="#1e293b" class="w-full h-7 rounded border-0 bg-transparent cursor-pointer">
@@ -233,7 +254,7 @@
           </div>
         </div>
 
-        <!-- Opacity -->
+        <!-- Opacity Slider -->
         <div>
           <div class="flex justify-between text-white/70 mb-1 text-[11px]">
             <span>Card Opacity</span>
@@ -242,16 +263,16 @@
           <input type="range" id="card-opacity" min="10" max="100" value="90" class="w-full">
         </div>
 
-        <!-- Background Image -->
+        <!-- Background Image/GIF -->
         <div>
           <label class="block text-white/70 mb-1 text-[11px]">Background Image/GIF URL</label>
-          <input type="text" id="bg-url-input" placeholder="https://... image/gif" class="w-full bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-white text-[11px] placeholder-white/30 focus:outline-none focus:border-violet-500">
+          <input type="text" id="bg-url-input" placeholder="https://... image or gif" class="w-full bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-white text-[11px] placeholder-white/30 focus:outline-none focus:border-violet-500">
         </div>
       </div>
     </div>
   </div>
 
-  <div id="yt-player-frame"></div>
+  <div id="yt-player-container"></div>
 
   <script src="https://www.youtube.com/iframe_api"></script>
   
@@ -261,61 +282,27 @@
     let isShuffle = false;
     let isLoop = false;
     let updateTimer = null;
-    let isApiReady = false;
+    let defaultPlaylistId = 'PL4fGSI1pTjv1-0m-9Z-9vXN-U9j_o9z-A';
 
-    const PLAY_SVG_PATH = 'M8 5v14l11-7z';
-    const PAUSE_SVG_PATH = 'M6 19h4V5H6v14zm8-14v14h4V5h-4z';
-
-    // Copy helper
-    async function copyToClipboard(textToCopy) {
-      if (navigator.clipboard && window.isSecureContext) {
-        try {
-          await navigator.clipboard.writeText(textToCopy);
-          return true;
-        } catch (err) {}
-      }
-      try {
-        const textArea = document.createElement('textarea');
-        textArea.value = textToCopy;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-999999px';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        const successful = document.execCommand('copy');
-        document.body.removeChild(textArea);
-        return successful;
-      } catch (err) {
-        return false;
-      }
-    }
-
-    // Parse URL Parameters
+    // Parse URL Query Parameters
     const urlParams = new URLSearchParams(window.location.search);
-    const directPlaylistParam = urlParams.get('playlist') || urlParams.get('list');
+    
+    // Priority for Instance Identification:
+    // 1. ?id= or ?instance= parameter in URL
+    // 2. Saved instance ID or new random string generated
+    let currentInstanceId = urlParams.get('id') || urlParams.get('instance') || generateRandomUniqueId();
+    let currentPlaylistId = extractPlaylistId(urlParams.get('playlist') || urlParams.get('list')) || defaultPlaylistId;
+
+    // Dynamic Base URL Detection
     const baseUrl = window.location.origin + window.location.pathname;
 
-    let currentPlaylistId = directPlaylistParam || '';
-
-    function extractPlaylistId(input) {
-      if (!input) return '';
-      const str = input.trim();
-      const listMatch = str.match(/[?&]list=([^&]+)/);
-      if (listMatch && listMatch[1]) return listMatch[1];
-      if (/^[A-Za-z0-9_-]{10,}$/.test(str)) return str;
-      return '';
+    function generateRandomUniqueId() {
+      return 'inst_' + Math.random().toString(36).substring(2, 8);
     }
 
-    function updateGeneratedEmbedUrl(rawPlaylist) {
-      const generatedCode = document.getElementById('generated-notion-url');
-      const cleanBase = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
-      const cleanId = extractPlaylistId(rawPlaylist) || currentPlaylistId;
-
-      if (cleanId) {
-        generatedCode.textContent = `${cleanBase}?playlist=${cleanId}`;
-      } else {
-        generatedCode.textContent = cleanBase;
-      }
+    // Storage Key Generator - Instance Specific!
+    function getInstanceStorageKey() {
+      return `yt_widget_config_${currentInstanceId}`;
     }
 
     function safeStorageGet(key) {
@@ -326,37 +313,57 @@
       try { localStorage.setItem(key, value); } catch (e) {}
     }
 
-    function updateStatusBadge(text, colorClass = 'bg-white/10 text-white/70') {
-      const badge = document.getElementById('status-badge');
-      if (!badge) return;
-      badge.textContent = text;
-      badge.className = `px-1.5 py-0.5 rounded text-[9px] font-semibold ${colorClass}`;
+    function updateGeneratedEmbedUrl() {
+      const generatedCode = document.getElementById('generated-notion-url');
+      const cleanBase = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+      
+      const params = new URLSearchParams();
+      if (currentPlaylistId) params.set('playlist', currentPlaylistId);
+      if (currentInstanceId) params.set('id', currentInstanceId);
+
+      generatedCode.textContent = `${cleanBase}?${params.toString()}`;
     }
 
     function loadSavedSettings() {
-      const storageKeySuffix = currentPlaylistId ? `_${currentPlaylistId}` : '';
-      const savedCardColor = safeStorageGet(`yt_card_color${storageKeySuffix}`) || '#1e293b';
-      const savedAccentColor = safeStorageGet(`yt_accent_color${storageKeySuffix}`) || '#8b5cf6';
-      const savedOpacity = safeStorageGet(`yt_card_opacity${storageKeySuffix}`) || '90';
-      const savedBgUrl = safeStorageGet(`yt_bg_url${storageKeySuffix}`) || '';
+      const storageKey = getInstanceStorageKey();
+      let savedConfig = {};
       
-      let initialPlaylistUrl = currentPlaylistId 
-        ? `https://www.youtube.com/playlist?list=${currentPlaylistId}`
-        : '';
+      try {
+        const raw = safeStorageGet(storageKey);
+        if (raw) savedConfig = JSON.parse(raw);
+      } catch (e) { savedConfig = {}; }
 
-      document.getElementById('card-color-picker').value = savedCardColor;
-      document.getElementById('accent-color-picker').value = savedAccentColor;
-      document.getElementById('card-opacity').value = savedOpacity;
-      document.getElementById('bg-url-input').value = savedBgUrl;
-      document.getElementById('playlist-input').value = initialPlaylistUrl;
-
-      updateGeneratedEmbedUrl(initialPlaylistUrl);
-      applyTheme(savedCardColor, savedAccentColor, savedOpacity, savedBgUrl);
-
-      if (currentPlaylistId) {
-        document.getElementById('track-title').textContent = "Playlist Loaded (Press Play)";
-        updateStatusBadge('Ready', 'bg-emerald-500/20 text-emerald-300');
+      const cardColor = savedConfig.cardColor || '#1e293b';
+      const accentColor = savedConfig.accentColor || '#8b5cf6';
+      const opacity = savedConfig.opacity || '90';
+      const bgUrl = savedConfig.bgUrl || '';
+      
+      if (savedConfig.playlistId && !urlParams.get('playlist')) {
+        currentPlaylistId = savedConfig.playlistId;
       }
+
+      document.getElementById('card-color-picker').value = cardColor;
+      document.getElementById('accent-color-picker').value = accentColor;
+      document.getElementById('card-opacity').value = opacity;
+      document.getElementById('bg-url-input').value = bgUrl;
+      document.getElementById('playlist-input').value = currentPlaylistId;
+      document.getElementById('instance-id-input').value = currentInstanceId;
+
+      updateGeneratedEmbedUrl();
+      applyTheme(cardColor, accentColor, opacity, bgUrl);
+    }
+
+    function saveCurrentSettings() {
+      const config = {
+        cardColor: document.getElementById('card-color-picker').value,
+        accentColor: document.getElementById('accent-color-picker').value,
+        opacity: document.getElementById('card-opacity').value,
+        bgUrl: document.getElementById('bg-url-input').value,
+        playlistId: currentPlaylistId,
+        instanceId: currentInstanceId
+      };
+
+      safeStorageSet(getInstanceStorageKey(), JSON.stringify(config));
     }
 
     function applyTheme(cardHex, accentHex, opacity, bgUrl) {
@@ -384,91 +391,72 @@
       }
     }
 
-    function setPlayIconState(playing) {
-      isPlaying = playing;
-      const playIcon = document.getElementById('play-icon');
-      if (!playIcon) return;
-      const pathElement = playIcon.querySelector('path');
-      if (!pathElement) return;
-
-      if (playing) {
-        pathElement.setAttribute('d', PAUSE_SVG_PATH);
-        updateStatusBadge('Playing', 'bg-violet-500/20 text-violet-300');
-      } else {
-        pathElement.setAttribute('d', PLAY_SVG_PATH);
-        updateStatusBadge('Paused', 'bg-amber-500/20 text-amber-300');
-      }
-    }
-
-    function initYouTubePlayer() {
-      if (player) return;
+    function createPlayer(playlistId) {
+      const container = document.getElementById('yt-player-container');
+      container.innerHTML = '<div id="yt-player-frame"></div>';
 
       player = new YT.Player('yt-player-frame', {
         height: '200',
         width: '200',
         playerVars: {
+          listType: 'playlist',
+          list: playlistId,
           autoplay: 0,
           controls: 0,
           disablekb: 1,
-          fs: 0,
-          origin: window.location.origin
+          fs: 0
         },
         events: {
           'onReady': onPlayerReady,
-          'onStateChange': onPlayerStateChange,
-          'onError': onPlayerError
+          'onStateChange': onPlayerStateChange
         }
       });
     }
 
     function onYouTubeIframeAPIReady() {
-      isApiReady = true;
-      initYouTubePlayer();
+      createPlayer(currentPlaylistId);
     }
 
     function onPlayerReady(event) {
-      if (currentPlaylistId) {
-        try {
-          player.cuePlaylist({
-            listType: 'playlist',
-            list: currentPlaylistId,
-            index: 0,
-            startSeconds: 0
-          });
-        } catch (e) {
-          console.error("Cue error:", e);
-        }
-      }
-    }
-
-    function onPlayerStateChange(event) {
-      if (event.data === YT.PlayerState.PLAYING) {
-        setPlayIconState(true);
-        startTimer();
-      } else if (event.data === YT.PlayerState.PAUSED) {
-        setPlayIconState(false);
-        stopTimer();
-      } else if (event.data === YT.PlayerState.ENDED) {
-        setPlayIconState(false);
-        stopTimer();
-      } else if (event.data === YT.PlayerState.CUED) {
-        updateTrackInfo();
-        updateStatusBadge('Ready', 'bg-emerald-500/20 text-emerald-300');
-      }
+      document.getElementById('player-status').textContent = 'Ready';
       updateTrackInfo();
     }
 
-    function onPlayerError(event) {
-      console.warn("YouTube Player Error code:", event.data);
-      if (player && typeof player.nextVideo === 'function') {
-        player.nextVideo();
+    function updatePlayButtonUI(playing) {
+      isPlaying = playing;
+      const playIcon = document.getElementById('play-icon');
+      playIcon.className = playing ? 'fa-solid fa-pause text-xs' : 'fa-solid fa-play text-xs translate-x-0.5';
+    }
+
+    function onPlayerStateChange(event) {
+      const statusBadge = document.getElementById('player-status');
+
+      if (event.data === YT.PlayerState.PLAYING) {
+        updatePlayButtonUI(true);
+        statusBadge.textContent = 'Playing';
+        startTimer();
+      } else if (event.data === YT.PlayerState.PAUSED) {
+        updatePlayButtonUI(false);
+        statusBadge.textContent = 'Paused';
+        stopTimer();
+      } else if (event.data === YT.PlayerState.BUFFERING) {
+        statusBadge.textContent = 'Buffering';
+      } else if (event.data === YT.PlayerState.ENDED) {
+        updatePlayButtonUI(false);
+        statusBadge.textContent = 'Ended';
+        stopTimer();
+      } else {
+        updatePlayButtonUI(false);
+        statusBadge.textContent = 'Ready';
+        stopTimer();
       }
+      updateTrackInfo();
     }
 
     function updateTrackInfo() {
       if (!player || typeof player.getVideoData !== 'function') return;
       const data = player.getVideoData();
-      if (data && data.title && data.title !== "") {
+      if (data && data.title) {
         document.getElementById('track-title').textContent = data.title;
         const videoId = data.video_id;
         if (videoId) {
@@ -501,6 +489,21 @@
       return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     }
 
+    function extractPlaylistId(input) {
+      if (!input) return '';
+      const str = input.trim();
+      const listMatch = str.match(/[?&]list=([^&]+)/);
+      if (listMatch && listMatch[1]) return listMatch[1];
+      if (/^[A-Za-z0-9_-]{12,}$/.test(str)) return str;
+      return '';
+    }
+
+    function triggerEmbedBoxHighlight() {
+      const box = document.getElementById('embed-link-box');
+      box.classList.add('highlight-embed-box');
+      setTimeout(() => box.classList.remove('highlight-embed-box'), 4000);
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       loadSavedSettings();
 
@@ -514,51 +517,50 @@
         settingsPanel.classList.add('opacity-0', 'pointer-events-none', 'translate-y-3');
       });
 
-      document.getElementById('playlist-input').addEventListener('input', (e) => {
-        updateGeneratedEmbedUrl(e.target.value);
+      // Instance ID handling
+      document.getElementById('instance-id-input').addEventListener('input', (e) => {
+        const val = e.target.value.trim().replace(/[^a-zA-Z0-9_-]/g, '');
+        currentInstanceId = val || generateRandomUniqueId();
+        updateGeneratedEmbedUrl();
+        saveCurrentSettings();
       });
 
-      document.getElementById('copy-notion-embed-btn').addEventListener('click', async () => {
-        const generatedCode = document.getElementById('generated-notion-url').textContent.trim();
+      document.getElementById('regen-id-btn').addEventListener('click', () => {
+        currentInstanceId = generateRandomUniqueId();
+        document.getElementById('instance-id-input').value = currentInstanceId;
+        updateGeneratedEmbedUrl();
+        saveCurrentSettings();
+        triggerEmbedBoxHighlight();
+      });
+
+      // Copy Notion embed link button
+      document.getElementById('copy-notion-embed-btn').addEventListener('click', () => {
+        const generatedCode = document.getElementById('generated-notion-url').textContent;
         const btn = document.getElementById('copy-notion-embed-btn');
         
-        const isCopied = await copyToClipboard(generatedCode);
-        if (isCopied) {
-          const originalHTML = btn.innerHTML;
-          btn.innerHTML = `<i class="fa-solid fa-check"></i> Copied to Clipboard!`;
-          btn.classList.replace('bg-violet-600', 'bg-emerald-600');
-          setTimeout(() => {
-            btn.innerHTML = originalHTML;
-            btn.classList.replace('bg-emerald-600', 'bg-violet-600');
-          }, 2500);
-        }
+        // Execute fallback copy for iframe restrictions
+        const tempTextArea = document.createElement('textarea');
+        tempTextArea.value = generatedCode.trim();
+        document.body.appendChild(tempTextArea);
+        tempTextArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempTextArea);
+
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = `<i class="fa-solid fa-check"></i> Copied!`;
+        btn.classList.remove('bg-violet-600', 'hover:bg-violet-500');
+        btn.classList.add('bg-emerald-600', 'hover:bg-emerald-500');
+        setTimeout(() => {
+          btn.innerHTML = originalHTML;
+          btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-500');
+          btn.classList.add('bg-violet-600', 'hover:bg-violet-500');
+        }, 2000);
       });
 
       document.getElementById('play-btn').addEventListener('click', () => {
         if (!player) return;
-
-        if (isPlaying) {
-          player.pauseVideo();
-          setPlayIconState(false);
-        } else {
-          // If playlist isn't loaded yet, attempt loading or playing
-          if (currentPlaylistId && typeof player.loadPlaylist === 'function') {
-            const currentData = player.getVideoData ? player.getVideoData() : null;
-            if (!currentData || !currentData.video_id) {
-              player.loadPlaylist({
-                listType: 'playlist',
-                list: currentPlaylistId,
-                index: 0,
-                startSeconds: 0
-              });
-            } else {
-              player.playVideo();
-            }
-          } else {
-            player.playVideo();
-          }
-          setPlayIconState(true);
-        }
+        if (isPlaying) player.pauseVideo();
+        else player.playVideo();
       });
 
       document.getElementById('next-btn').addEventListener('click', () => player && player.nextVideo());
@@ -591,13 +593,9 @@
         const val = e.target.value;
         player.setVolume(val);
         const icon = document.getElementById('volume-icon');
-        if (val == 0) {
-          icon.className = 'fa-solid fa-volume-xmark text-xs text-red-400';
-        } else if (val < 50) {
-          icon.className = 'fa-solid fa-volume-low text-xs';
-        } else {
-          icon.className = 'fa-solid fa-volume-high text-xs';
-        }
+        if (val == 0) icon.className = 'fa-solid fa-volume-xmark text-xs text-red-400';
+        else if (val < 50) icon.className = 'fa-solid fa-volume-low text-xs';
+        else icon.className = 'fa-solid fa-volume-high text-xs';
       });
 
       document.getElementById('progress-bar').addEventListener('input', (e) => {
@@ -608,7 +606,6 @@
       });
 
       const updateThemeFromInputs = () => {
-        const storageKeySuffix = currentPlaylistId ? `_${currentPlaylistId}` : '';
         const cardColor = document.getElementById('card-color-picker').value;
         const accentColor = document.getElementById('accent-color-picker').value;
         const opacity = document.getElementById('card-opacity').value;
@@ -616,11 +613,7 @@
 
         document.getElementById('opacity-val').textContent = `${opacity}%`;
         applyTheme(cardColor, accentColor, opacity, bgUrl);
-
-        safeStorageSet(`yt_card_color${storageKeySuffix}`, cardColor);
-        safeStorageSet(`yt_accent_color${storageKeySuffix}`, accentColor);
-        safeStorageSet(`yt_card_opacity${storageKeySuffix}`, opacity);
-        safeStorageSet(`yt_bg_url${storageKeySuffix}`, bgUrl);
+        saveCurrentSettings();
       };
 
       document.getElementById('card-color-picker').addEventListener('input', updateThemeFromInputs);
@@ -628,36 +621,34 @@
       document.getElementById('card-opacity').addEventListener('input', updateThemeFromInputs);
       document.getElementById('bg-url-input').addEventListener('input', updateThemeFromInputs);
 
-      document.getElementById('load-playlist-btn').addEventListener('click', async () => {
+      // Load Playlist Action
+      document.getElementById('load-playlist-btn').addEventListener('click', () => {
         const rawUrl = document.getElementById('playlist-input').value;
         const cleanPlaylistId = extractPlaylistId(rawUrl);
         const msg = document.getElementById('playlist-msg');
 
         if (!cleanPlaylistId) {
-          msg.textContent = '❌ Invalid URL. Please copy a valid playlist link.';
+          msg.textContent = '❌ Invalid URL or Playlist ID.';
           msg.className = 'text-[10px] mt-1 text-red-400 block';
           return;
         }
 
+        msg.textContent = '⏳ Loaded! Copy link below into Notion.';
+        msg.className = 'text-[10px] mt-1 text-emerald-400 block';
+
         currentPlaylistId = cleanPlaylistId;
-        updateGeneratedEmbedUrl(rawUrl);
+        updateGeneratedEmbedUrl();
+        saveCurrentSettings();
+        triggerEmbedBoxHighlight();
 
-        const embedBox = document.getElementById('embed-box');
-        embedBox.classList.add('highlight-embed-box');
-        
-        const generatedCode = document.getElementById('generated-notion-url').textContent.trim();
-        await copyToClipboard(generatedCode);
-
-        msg.textContent = '✅ Playlist ready & Permanent Link copied! Replace the embed link in Notion to save.';
-        msg.className = 'text-[10px] mt-1 text-emerald-400 font-semibold block';
-
-        if (player && typeof player.loadPlaylist === 'function') {
-          player.loadPlaylist({
-            listType: 'playlist',
-            list: currentPlaylistId,
-            index: 0,
-            startSeconds: 0
-          });
+        try {
+          if (player && typeof player.loadPlaylist === 'function') {
+            player.loadPlaylist({ listType: 'playlist', list: currentPlaylistId, index: 0, startSeconds: 0 });
+          } else {
+            createPlayer(currentPlaylistId);
+          }
+        } catch (err) {
+          createPlayer(currentPlaylistId);
         }
       });
     });
