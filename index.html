@@ -190,15 +190,26 @@
       <div class="custom-scroll flex-1 overflow-y-auto space-y-2 text-[11px] text-white/80 pr-1 pb-2">
         <p>To use this widget across different Notion pages (e.g. Character A & B) without overwriting settings:</p>
         
+        <!-- Option 1: Direct Playlist -->
         <div class="bg-black/40 p-2 rounded border border-white/10 space-y-1">
-          <strong class="text-white font-medium block">Option 1: Embed direct playlist</strong>
-          <code class="text-[10px] text-violet-300 block break-all font-mono">YOUR_URL/?playlist=PLAYLIST_ID_OR_LINK</code>
+          <div class="flex justify-between items-center">
+            <strong class="text-white font-medium block">Option 1: Direct Playlist Embed</strong>
+            <button class="copy-btn text-[10px] text-violet-400 hover:text-violet-300 transition-colors" data-target="code-option-1">
+              <i class="fa-regular fa-copy mr-0.5"></i> Copy
+            </button>
+          </div>
+          <code id="code-option-1" class="text-[10px] text-violet-300 block break-all font-mono bg-black/50 p-1.5 rounded select-all">https://custom-yt-playlist-widget.vercel.app/?playlist=YOUR_PLAYLIST_ID</code>
         </div>
 
+        <!-- Option 2: Unique Page IDs -->
         <div class="bg-black/40 p-2 rounded border border-white/10 space-y-1">
-          <strong class="text-white font-medium block">Option 2: Separate unique IDs</strong>
-          <code class="text-[10px] text-violet-300 block break-all font-mono">YOUR_URL/?id=characterA</code>
-          <code class="text-[10px] text-violet-300 block break-all font-mono">YOUR_URL/?id=characterB</code>
+          <div class="flex justify-between items-center">
+            <strong class="text-white font-medium block">Option 2: Separate Page IDs</strong>
+            <button class="copy-btn text-[10px] text-violet-400 hover:text-violet-300 transition-colors" data-target="code-option-2">
+              <i class="fa-regular fa-copy mr-0.5"></i> Copy
+            </button>
+          </div>
+          <code id="code-option-2" class="text-[10px] text-violet-300 block break-all font-mono bg-black/50 p-1.5 rounded select-all">https://custom-yt-playlist-widget.vercel.app/?id=characterA</code>
         </div>
       </div>
     </div>
@@ -268,12 +279,24 @@
     const instanceId = urlParams.get('id') || urlParams.get('page') || 'default';
     const directPlaylistParam = urlParams.get('playlist') || urlParams.get('list');
 
+    // Dynamic Base URL Detection
+    const baseUrl = window.location.origin + window.location.pathname;
+
     // Storage keys unique to each instance/id
     const KEY_CARD_COLOR = `yt_card_color_${instanceId}`;
     const KEY_ACCENT_COLOR = `yt_accent_color_${instanceId}`;
     const KEY_OPACITY = `yt_card_opacity_${instanceId}`;
     const KEY_BG_URL = `yt_bg_url_${instanceId}`;
     const KEY_PLAYLIST_URL = `yt_playlist_url_${instanceId}`;
+
+    function setupInstructionUrls() {
+      const code1 = document.getElementById('code-option-1');
+      const code2 = document.getElementById('code-option-2');
+
+      const cleanBase = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+      code1.textContent = `${cleanBase}?playlist=YOUR_PLAYLIST_ID`;
+      code2.textContent = `${cleanBase}?id=characterA`;
+    }
 
     function loadSavedSettings() {
       const savedCardColor = localStorage.getItem(KEY_CARD_COLOR) || '#1e293b';
@@ -443,6 +466,7 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       loadSavedSettings();
+      setupInstructionUrls();
 
       const settingsPanel = document.getElementById('settings-panel');
       const infoPanel = document.getElementById('info-panel');
@@ -463,6 +487,25 @@
 
       document.getElementById('close-info').addEventListener('click', () => {
         infoPanel.classList.add('opacity-0', 'pointer-events-none', 'translate-y-3');
+      });
+
+      // Copy buttons handler
+      document.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const targetId = btn.getAttribute('data-target');
+          const codeEl = document.getElementById(targetId);
+          if (codeEl) {
+            navigator.clipboard.writeText(codeEl.textContent.trim()).then(() => {
+              const originalHTML = btn.innerHTML;
+              btn.innerHTML = `<i class="fa-solid fa-check mr-0.5"></i> Copied!`;
+              btn.classList.add('text-emerald-400');
+              setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.classList.remove('text-emerald-400');
+              }, 2000);
+            });
+          }
+        });
       });
 
       document.getElementById('play-btn').addEventListener('click', () => {
