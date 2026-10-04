@@ -151,9 +151,14 @@
           <button id="prev-btn" class="text-white/70 hover:text-white transition-colors text-xs">
             <i class="fa-solid fa-backward-step"></i>
           </button>
-          <button id="play-btn" class="w-8 h-8 rounded-full bg-violet-600 text-white flex items-center justify-center hover:scale-105 transition-all shadow-md">
-            <i id="play-icon" class="fa-solid fa-play text-xs translate-x-0.5"></i>
+          
+          <!-- Play/Pause Button with SVG symbol swap -->
+          <button id="play-btn" class="w-8 h-8 rounded-full bg-violet-600 text-white flex items-center justify-center hover:scale-105 transition-all shadow-md flex-shrink-0">
+            <svg id="play-icon" class="w-4 h-4 fill-current translate-x-0.5" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
           </button>
+
           <button id="next-btn" class="text-white/70 hover:text-white transition-colors text-xs">
             <i class="fa-solid fa-forward-step"></i>
           </button>
@@ -257,6 +262,10 @@
     let isLoop = false;
     let updateTimer = null;
 
+    // SVG path data for Play and Pause
+    const PLAY_SVG_PATH = 'M8 5v14l11-7z';
+    const PAUSE_SVG_PATH = 'M6 19h4V5H6v14zm8-14v14h4V5h-4z';
+
     // Parse URL Parameters
     const urlParams = new URLSearchParams(window.location.search);
     const directPlaylistParam = urlParams.get('playlist') || urlParams.get('list');
@@ -265,7 +274,6 @@
     const baseUrl = window.location.origin + window.location.pathname;
     let sessionUniqueId = instanceId !== 'default' ? instanceId : generateRandomUniqueId();
 
-    // Default Playlist ID removed - starts completely blank
     let currentPlaylistId = directPlaylistParam || '';
 
     function generateRandomUniqueId() {
@@ -348,15 +356,21 @@
       }
     }
 
+    // Directly swaps SVG paths for clean play and pause states
     function setPlayIconState(playing) {
       isPlaying = playing;
       const playIcon = document.getElementById('play-icon');
       if (!playIcon) return;
 
+      const pathElement = playIcon.querySelector('path');
+      if (!pathElement) return;
+
       if (playing) {
-        playIcon.setAttribute('class', 'fa-solid fa-pause text-xs');
+        pathElement.setAttribute('d', PAUSE_SVG_PATH);
+        playIcon.classList.remove('translate-x-0.5');
       } else {
-        playIcon.setAttribute('class', 'fa-solid fa-play text-xs translate-x-0.5');
+        pathElement.setAttribute('d', PLAY_SVG_PATH);
+        playIcon.classList.add('translate-x-0.5');
       }
     }
 
@@ -404,7 +418,7 @@
         setPlayIconState(false);
         stopTimer();
       } else if (event.data === YT.PlayerState.BUFFERING) {
-        // Retain current play/pause icon during buffering
+        // Keep active state while buffering
       } else {
         setPlayIconState(false);
         stopTimer();
