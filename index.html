@@ -115,7 +115,7 @@
 
         <div class="flex-1 min-w-0">
           <div class="marquee-container w-full">
-            <h1 id="track-title" class="marquee-content font-bold text-xs text-white">Loading Playlist...</h1>
+            <h1 id="track-title" class="marquee-content font-bold text-xs text-white">No Playlist Loaded</h1>
           </div>
           
           <div class="flex items-center gap-2 mt-0.5">
@@ -262,18 +262,16 @@
     const directPlaylistParam = urlParams.get('playlist') || urlParams.get('list');
     const instanceId = urlParams.get('id') || 'default';
 
-    // Base URL Detection
     const baseUrl = window.location.origin + window.location.pathname;
     let sessionUniqueId = instanceId !== 'default' ? instanceId : generateRandomUniqueId();
 
-    // Default Fallback Playlist
-    let currentPlaylistId = directPlaylistParam || 'PL4fGSI1pTjv1-0m-9Z-9vXN-U9j_o9z-A';
+    // Default Playlist ID removed - starts completely blank
+    let currentPlaylistId = directPlaylistParam || '';
 
     function generateRandomUniqueId() {
       return 'pg_' + Math.random().toString(36).substring(2, 9);
     }
 
-    // Dynamic Storage Keys
     const KEY_CARD_COLOR = `yt_card_color_${instanceId}`;
     const KEY_ACCENT_COLOR = `yt_accent_color_${instanceId}`;
     const KEY_OPACITY = `yt_card_opacity_${instanceId}`;
@@ -285,7 +283,11 @@
       const cleanBase = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
       const cleanId = extractPlaylistId(rawPlaylist) || currentPlaylistId;
 
-      generatedCode.textContent = `${cleanBase}?playlist=${cleanId}&id=${sessionUniqueId}`;
+      if (cleanId) {
+        generatedCode.textContent = `${cleanBase}?playlist=${cleanId}&id=${sessionUniqueId}`;
+      } else {
+        generatedCode.textContent = `${cleanBase}?id=${sessionUniqueId}`;
+      }
     }
 
     function safeStorageGet(key) {
@@ -346,7 +348,21 @@
       }
     }
 
+    function setPlayIconState(playing) {
+      isPlaying = playing;
+      const playIcon = document.getElementById('play-icon');
+      if (!playIcon) return;
+
+      if (playing) {
+        playIcon.setAttribute('class', 'fa-solid fa-pause text-xs');
+      } else {
+        playIcon.setAttribute('class', 'fa-solid fa-play text-xs translate-x-0.5');
+      }
+    }
+
     function createPlayer(playlistId) {
+      if (!playlistId) return;
+
       if (player && typeof player.destroy === 'function') {
         player.destroy();
       }
@@ -370,37 +386,27 @@
     }
 
     function onYouTubeIframeAPIReady() {
-      createPlayer(currentPlaylistId);
+      if (currentPlaylistId) {
+        createPlayer(currentPlaylistId);
+      }
     }
 
     function onPlayerReady(event) {
       updateTrackInfo();
-      updatePlayButtonUI(false);
-    }
-
-    // Dynamic Play / Pause Icon Updater
-    function updatePlayButtonUI(playing) {
-      isPlaying = playing;
-      const playIcon = document.getElementById('play-icon');
-      if (playing) {
-        playIcon.className = 'fa-solid fa-pause text-xs';
-      } else {
-        playIcon.className = 'fa-solid fa-play text-xs translate-x-0.5';
-      }
+      setPlayIconState(false);
     }
 
     function onPlayerStateChange(event) {
       if (event.data === YT.PlayerState.PLAYING) {
-        updatePlayButtonUI(true);
+        setPlayIconState(true);
         startTimer();
-      } else if (event.data === YT.PlayerState.PAUSED) {
-        updatePlayButtonUI(false);
+      } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
+        setPlayIconState(false);
         stopTimer();
-      } else if (event.data === YT.PlayerState.ENDED) {
-        updatePlayButtonUI(false);
-        stopTimer();
+      } else if (event.data === YT.PlayerState.BUFFERING) {
+        // Retain current play/pause icon during buffering
       } else {
-        updatePlayButtonUI(false);
+        setPlayIconState(false);
         stopTimer();
       }
       updateTrackInfo();
@@ -490,12 +496,13 @@
 
       document.getElementById('play-btn').addEventListener('click', () => {
         if (!player) return;
+
         if (isPlaying) {
           player.pauseVideo();
-          updatePlayButtonUI(false);
+          setPlayIconState(false);
         } else {
           player.playVideo();
-          updatePlayButtonUI(true);
+          setPlayIconState(true);
         }
       });
 
