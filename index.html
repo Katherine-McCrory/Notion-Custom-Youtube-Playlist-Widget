@@ -188,17 +188,17 @@
       </div>
 
       <div class="custom-scroll flex-1 overflow-y-auto space-y-2 text-[11px] text-white/80 pr-1 pb-2">
-        <p>To use this widget across different Notion pages (e.g. Character A & B) without overwriting settings:</p>
+        <p>To keep distinct playlists or settings per Notion page:</p>
         
         <!-- Option 1: Direct Playlist -->
         <div class="bg-black/40 p-2 rounded border border-white/10 space-y-1">
           <div class="flex justify-between items-center">
-            <strong class="text-white font-medium block">Option 1: Direct Playlist Embed</strong>
+            <strong class="text-white font-medium block">Option 1: Direct Playlist Link</strong>
             <button class="copy-btn text-[10px] text-violet-400 hover:text-violet-300 transition-colors" data-target="code-option-1">
               <i class="fa-regular fa-copy mr-0.5"></i> Copy
             </button>
           </div>
-          <code id="code-option-1" class="text-[10px] text-violet-300 block break-all font-mono bg-black/50 p-1.5 rounded select-all">https://custom-yt-playlist-widget.vercel.app/?playlist=YOUR_PLAYLIST_ID</code>
+          <code id="code-option-1" class="text-[10px] text-violet-300 block break-all font-mono bg-black/50 p-1.5 rounded select-all">https://custom-yt-playlist-widget.vercel.app/?playlist=PLAYLIST_ID</code>
         </div>
 
         <!-- Option 2: Unique Page IDs -->
@@ -282,12 +282,13 @@
     // Dynamic Base URL Detection
     const baseUrl = window.location.origin + window.location.pathname;
 
-    // Storage keys unique to each instance/id
+    // Storage keys unique to each instance/id + global fallback
     const KEY_CARD_COLOR = `yt_card_color_${instanceId}`;
     const KEY_ACCENT_COLOR = `yt_accent_color_${instanceId}`;
     const KEY_OPACITY = `yt_card_opacity_${instanceId}`;
     const KEY_BG_URL = `yt_bg_url_${instanceId}`;
     const KEY_PLAYLIST_URL = `yt_playlist_url_${instanceId}`;
+    const GLOBAL_PLAYLIST_KEY = `yt_global_last_playlist_url`;
 
     function setupInstructionUrls() {
       const code1 = document.getElementById('code-option-1');
@@ -298,17 +299,35 @@
       code2.textContent = `${cleanBase}?id=characterA`;
     }
 
-    function loadSavedSettings() {
-      const savedCardColor = localStorage.getItem(KEY_CARD_COLOR) || '#1e293b';
-      const savedAccentColor = localStorage.getItem(KEY_ACCENT_COLOR) || '#8b5cf6';
-      const savedOpacity = localStorage.getItem(KEY_OPACITY) || '90';
-      const savedBgUrl = localStorage.getItem(KEY_BG_URL) || '';
-      
-      let savedPlaylistUrl = localStorage.getItem(KEY_PLAYLIST_URL) || '';
-
-      if (directPlaylistParam) {
-        savedPlaylistUrl = directPlaylistParam;
+    function safeStorageGet(key) {
+      try {
+        return localStorage.getItem(key);
+      } catch (e) {
+        return null;
       }
+    }
+
+    function safeStorageSet(key, value) {
+      try {
+        localStorage.setItem(key, value);
+      } catch (e) {
+        // Fallback or quiet failure if cookies disabled
+      }
+    }
+
+    function loadSavedSettings() {
+      const savedCardColor = safeStorageGet(KEY_CARD_COLOR) || '#1e293b';
+      const savedAccentColor = safeStorageGet(KEY_ACCENT_COLOR) || '#8b5cf6';
+      const savedOpacity = safeStorageGet(KEY_OPACITY) || '90';
+      const savedBgUrl = safeStorageGet(KEY_BG_URL) || '';
+      
+      // Attempt 1: Direct URL Parameter
+      // Attempt 2: Instance-specific Local Storage
+      // Attempt 3: Global Last Used Playlist Fallback
+      let savedPlaylistUrl = directPlaylistParam 
+        || safeStorageGet(KEY_PLAYLIST_URL) 
+        || safeStorageGet(GLOBAL_PLAYLIST_KEY) 
+        || '';
 
       document.getElementById('card-color-picker').value = savedCardColor;
       document.getElementById('accent-color-picker').value = savedAccentColor;
@@ -572,10 +591,10 @@
         document.getElementById('opacity-val').textContent = `${opacity}%`;
         applyTheme(cardColor, accentColor, opacity, bgUrl);
 
-        localStorage.setItem(KEY_CARD_COLOR, cardColor);
-        localStorage.setItem(KEY_ACCENT_COLOR, accentColor);
-        localStorage.setItem(KEY_OPACITY, opacity);
-        localStorage.setItem(KEY_BG_URL, bgUrl);
+        safeStorageSet(KEY_CARD_COLOR, cardColor);
+        safeStorageSet(KEY_ACCENT_COLOR, accentColor);
+        safeStorageSet(KEY_OPACITY, opacity);
+        safeStorageSet(KEY_BG_URL, bgUrl);
       };
 
       document.getElementById('card-color-picker').addEventListener('input', updateThemeFromInputs);
@@ -599,7 +618,10 @@
         msg.className = 'text-[10px] mt-1 text-emerald-400 block';
 
         currentPlaylistId = cleanPlaylistId;
-        localStorage.setItem(KEY_PLAYLIST_URL, rawUrl);
+        
+        // Save both locally and globally
+        safeStorageSet(KEY_PLAYLIST_URL, rawUrl);
+        safeStorageSet(GLOBAL_PLAYLIST_KEY, rawUrl);
 
         try {
           if (player && typeof player.loadPlaylist === 'function') {
