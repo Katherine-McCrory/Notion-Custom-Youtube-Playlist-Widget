@@ -312,16 +312,36 @@
       updateTrackInfo();
     }
 
-    function onPlayerStateChange(event) {
-      if (event.data === YT.PlayerState.PLAYING) {
-        isPlaying = true;
-        document.getElementById('play-icon').className = 'fa-solid fa-pause text-xs';
-        document.getElementById('player-status').textContent = 'Playing';
-        startTimer();
+    function updatePlayButtonUI(playing) {
+      isPlaying = playing;
+      const playIcon = document.getElementById('play-icon');
+      if (playing) {
+        playIcon.className = 'fa-solid fa-pause text-xs';
       } else {
-        isPlaying = false;
-        document.getElementById('play-icon').className = 'fa-solid fa-play text-xs translate-x-0.5';
-        document.getElementById('player-status').textContent = event.data === YT.PlayerState.PAUSED ? 'Paused' : 'Ready';
+        playIcon.className = 'fa-solid fa-play text-xs translate-x-0.5';
+      }
+    }
+
+    function onPlayerStateChange(event) {
+      const statusBadge = document.getElementById('player-status');
+
+      if (event.data === YT.PlayerState.PLAYING) {
+        updatePlayButtonUI(true);
+        statusBadge.textContent = 'Playing';
+        startTimer();
+      } else if (event.data === YT.PlayerState.PAUSED) {
+        updatePlayButtonUI(false);
+        statusBadge.textContent = 'Paused';
+        stopTimer();
+      } else if (event.data === YT.PlayerState.BUFFERING) {
+        statusBadge.textContent = 'Buffering';
+      } else if (event.data === YT.PlayerState.ENDED) {
+        updatePlayButtonUI(false);
+        statusBadge.textContent = 'Ended';
+        stopTimer();
+      } else {
+        updatePlayButtonUI(false);
+        statusBadge.textContent = 'Ready';
         stopTimer();
       }
       updateTrackInfo();
@@ -363,20 +383,15 @@
       return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     }
 
-    // Flexible extraction for standard URLs, YouTube Music URLs, and share links
     function extractPlaylistId(input) {
       if (!input) return '';
       const str = input.trim();
-      
-      // Match list= parameter (handles standard & YT Music links)
       const listMatch = str.match(/[?&]list=([^&]+)/);
       if (listMatch && listMatch[1]) return listMatch[1];
 
-      // If user pasted raw playlist ID (PL... or RD...)
       if (/^[A-Za-z0-9_-]{12,}$/.test(str)) {
         return str;
       }
-
       return '';
     }
 
